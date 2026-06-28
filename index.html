@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wplace · Region Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+  --bg:       #07090f;
+  --surface:  #0d1117;
+  --raised:   #131920;
+  --border:   #1e2433;
+  --accent:   #7c6ff7;
+  --accent2:  #22d3ee;
+  --text:     #e8eaf0;
+  --muted:    #4a5568;
+  --dim:      #2d3748;
+  --hot:      #ff2d6f;
+  --font:     'Space Grotesk', system-ui, sans-serif;
+  --mono:     'JetBrains Mono', monospace;
+  --sidebar:  300px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+#app { display: flex; height: 100vh; }
+
+aside {
+  width: var(--sidebar);
+  min-width: var(--sidebar);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 500;
+}
+
+#map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* ── Sidebar header ──────────────────────────────────────── */
+#s-header {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#s-header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#s-header h1 .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  flex-shrink: 0;
+}
+
+#total-pixels {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -1px;
+  margin-top: 10px;
+  line-height: 1;
+  transition: color 0.3s;
+}
+
+#total-pixels.loading { color: var(--muted); }
+
+#total-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 4px;
+}
+
+/* ── Upload zone ─────────────────────────────────────────── */
+#upload-zone {
+  margin: 14px;
+  border: 1.5px dashed var(--dim);
+  border-radius: 8px;
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+#upload-zone:hover, #upload-zone.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+#upload-zone .uz-icon { font-size: 22px; margin-bottom: 6px; }
+#upload-zone .uz-title { font-size: 13px; font-weight: 500; color: var(--text); }
+#upload-zone .uz-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+#upload-zone.compact { padding: 10px 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
+#upload-zone.compact .uz-icon { font-size: 16px; margin-bottom: 0; }
+#upload-zone.compact .uz-sub { margin-top: 0; }
+#file-input { display: none; }
+
+/* ── Snapshot tabs ───────────────────────────────────────── */
+#snap-tabs {
+  display: none;
+  padding: 0 14px 10px;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.snap-tab {
+  font-size: 11px;
+  font-family: var(--mono);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.snap-tab:hover { border-color: var(--accent); color: var(--text); }
+.snap-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+/* ── Stats row ───────────────────────────────────────────── */
+#stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 14px 12px;
+  flex-shrink: 0;
+}
+
+.stat {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+
+.stat .s-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.stat .s-val { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--accent2); margin-top: 3px; }
+
+/* ── List tabs ───────────────────────────────────────────── */
+#list-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.list-tab {
+  flex: 1;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  letter-spacing: 0.2px;
+}
+
+.list-tab:hover { color: var(--text); }
+.list-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Scrollable list ─────────────────────────────────────── */
+#list-scroll { overflow-y: auto; flex: 1; }
+#list-scroll::-webkit-scrollbar { width: 4px; }
+#list-scroll::-webkit-scrollbar-track { background: transparent; }
+#list-scroll::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+.list-section { display: none; }
+.list-section.visible { display: block; }
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid #0d1117;
+}
+
+.list-item:hover { background: var(--raised); }
+
+.li-rank {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.li-name {
+  font-size: 12px;
+  color: #b0b8cc;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.li-bar-wrap { width: 40px; flex-shrink: 0; }
+.li-bar { height: 2px; background: var(--accent); border-radius: 1px; opacity: 0.7; }
+
+.li-val {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+#empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 12px;
+}
+
+#empty .em-icon { font-size: 52px; opacity: 0.3; }
+#empty .em-text { font-size: 13px; color: var(--muted); }
+
+/* ── Map controls ────────────────────────────────────────── */
+#map-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 400;
+  display: flex;
+  gap: 6px;
+}
+
+.mc-btn {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mc-btn:hover { color: var(--text); border-color: var(--dim); }
+.mc-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Popup overrides ─────────────────────────────────────── */
+.leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6) !important;
+  padding: 0 !important;
+}
+.leaflet-popup-tip-container { display: none; }
+.leaflet-popup-content { margin: 0 !important; }
+
+.popup {
+  padding: 14px 16px;
+  min-width: 180px;
+}
+.popup-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.popup-row { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.popup-row strong { color: #94a3b8; font-weight: 500; }
+.popup-link {
+  display: inline-block;
+  margin-top: 10px;
+  background: var(--accent);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.popup-link:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <aside>
+    <div id="s-header">
+      <h1><span class="dot"></span> Wplace Leaderboard</h1>
+      <div id="total-pixels" class="loading">—</div>
+      <div id="total-label">total pixels painted</div>
+    </div>
+
+    <div id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="uz-icon">📂</div>
+      <div class="uz-title">Drop CSV files here</div>
+      <div class="uz-sub">Multiple snapshots supported</div>
+    </div>
+    <input type="file" id="file-input" accept=".csv" multiple>
+
+    <div id="snap-tabs"></div>
+
+    <div id="stats-row">
+      <div class="stat">
+        <div class="s-label">Regions</div>
+        <div class="s-val" id="stat-regions">—</div>
+      </div>
+      <div class="stat">
+        <div class="s-label">Active</div>
+        <div class="s-val" id="stat-active">—</div>
+      </div>
+    </div>
+
+    <div id="list-tabs">
+      <button class="list-tab active" onclick="switchTab('regions')">Regions</button>
+      <button class="list-tab" onclick="switchTab('countries')">Countries</button>
+    </div>
+
+    <div id="list-scroll">
+      <div class="list-section visible" id="tab-regions"></div>
+      <div class="list-section" id="tab-countries"></div>
+    </div>
+  </aside>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="map-controls">
+      <button class="mc-btn active" id="btn-heat" onclick="setMode('heat')">Heatmap</button>
+      <button class="mc-btn" id="btn-dots" onclick="setMode('dots')">Markers</button>
+    </div>
+    <div id="empty">
+      <div class="em-icon">🌍</div>
+      <div class="em-text">Drop a CSV file to begin</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Map ───────────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: false, center: [25, 15], zoom: 2 });
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const snaps = {};   // filename → row[]
+let active  = null;
+let heat    = null;
+let dots    = null;
+let mode    = 'heat';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function coords(rid) {
+  const x = (rid - 1) % 512, y = Math.floor((rid - 1) / 512);
+  const lng = ((x + 0.5) / 512) * 360 - 180;
+  const n   = Math.PI - 2 * Math.PI * (y + 0.5) / 512;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return [lat, lng];
+}
+
+function fmt(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function animateCount(el, target) {
+  const start = Date.now(), dur = 800;
+  const tick = () => {
+    const p = Math.min((Date.now() - start) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(target * ease));
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── File drop / input ─────────────────────────────────────────────────────────
+const zone = document.getElementById('upload-zone');
+const fi   = document.getElementById('file-input');
+
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); loadFiles([...e.dataTransfer.files]); });
+fi.addEventListener('change', () => { loadFiles([...fi.files]); fi.value = ''; });
+
+function loadFiles(files) {
+  files.filter(f => f.name.endsWith('.csv')).forEach(f => {
+    Papa.parse(f, {
+      header: true, skipEmptyLines: true,
+      complete: ({ data }) => {
+        snaps[f.name] = data
+          .filter(r => r.regionId && +r.pixels > 0)
+          .map(r => ({
+            rank: +r.rank, regionId: +r.regionId,
+            name: r.name || `#${r.regionId}`,
+            pixels: +r.pixels, countryId: +r.countryId || 0,
+            url: r.url || ''
+          }));
+        rebuildTabs();
+        setActive(f.name);
+      }
+    });
+  });
+}
+
+// ── Snapshot tabs ─────────────────────────────────────────────────────────────
+function rebuildTabs() {
+  const keys = Object.keys(snaps);
+  const bar  = document.getElementById('snap-tabs');
+
+  bar.style.display = keys.length > 1 ? 'flex' : 'none';
+  bar.innerHTML = keys.map(k =>
+    `<button class="snap-tab${k === active ? ' active' : ''}" title="${k}" onclick="setActive('${k.replace(/'/g,"\\'")}')">
+      ${k.replace(/\.csv$/i, '').replace(/region_leaderboard_?/i, '') || k}
+    </button>`
+  ).join('');
+
+  // Compact upload zone after first file
+  zone.classList.toggle('compact', keys.length > 0);
+  zone.querySelector('.uz-title').textContent = keys.length > 0 ? 'Add more files' : 'Drop CSV files here';
+}
+
+function setActive(key) {
+  active = key;
+  document.querySelectorAll('.snap-tab').forEach(t =>
+    t.classList.toggle('active', t.title === key)
+  );
+  render(snaps[key]);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(rows) {
+  document.getElementById('empty').style.display = 'none';
+
+  const totalPx = rows.reduce((s, r) => s + r.pixels, 0);
+  const maxPx   = rows[0]?.pixels || 1;
+
+  // Animate the hero counter
+  const el = document.getElementById('total-pixels');
+  el.classList.remove('loading');
+  animateCount(el, totalPx);
+
+  document.getElementById('stat-regions').textContent = rows.length.toLocaleString();
+  document.getElementById('stat-active').textContent  = fmt(totalPx);
+
+  // Rebuild map layers
+  if (heat) { map.removeLayer(heat); heat = null; }
+  if (dots) { map.removeLayer(dots); dots = null; }
+
+  const heatPts = rows.map(r => {
+    const [lat, lng] = coords(r.regionId);
+    return [lat, lng, Math.log1p(r.pixels) / Math.log1p(maxPx)];
+  });
+
+  heat = L.heatLayer(heatPts, {
+    radius: 20, blur: 28, maxZoom: 7, max: 1.0,
+    gradient: { 0.0: '#1a0540', 0.3: '#5b21b6', 0.55: '#7c6ff7', 0.75: '#22d3ee', 0.9: '#f59e0b', 1.0: '#ff2d6f' }
+  });
+
+  dots = L.layerGroup(rows.slice(0, 300).map(r => {
+    const [lat, lng] = coords(r.regionId);
+    const t = Math.log1p(r.pixels) / Math.log1p(maxPx);
+    const m = L.circleMarker([lat, lng], {
+      radius: 3 + t * 9, fillColor: `hsl(${250 - t * 80}, 90%, 65%)`,
+      color: '#fff', fillOpacity: 0.8, weight: 0.5, opacity: 0.5
+    });
+    m.bindPopup(`<div class="popup">
+      <div class="popup-name">${r.name}</div>
+      <div class="popup-row"><strong>Rank</strong> #${r.rank}</div>
+      <div class="popup-row"><strong>Pixels</strong> ${r.pixels.toLocaleString()}</div>
+      ${r.url ? `<a class="popup-link" href="${r.url}" target="_blank">Open in wplace ↗</a>` : ''}
+    </div>`, { maxWidth: 240 });
+    return m;
+  }));
+
+  setMode(mode);
+
+  // Regions list (top 75)
+  const regHtml = rows.slice(0, 75).map(r => {
+    const pct = (r.pixels / maxPx * 100).toFixed(1);
+    return `<div class="list-item" onclick="flyTo(${r.regionId}, '${r.name.replace(/'/g,"\\'")}', ${r.pixels}, '${r.url}')">
+      <span class="li-rank">${r.rank}</span>
+      <span class="li-name">${r.name}</span>
+      <div class="li-bar-wrap"><div class="li-bar" style="width:${pct}%"></div></div>
+      <span class="li-val">${fmt(r.pixels)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tab-regions').innerHTML = regHtml;
+
+  // Countries aggregation
+  const byCid = {};
+  rows.forEach(r => { if (r.countryId) byCid[r.countryId] = (byCid[r.countryId] || 0) + r.pixels; });
+  const topC    = Object.entries(byCid).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  const maxCpx  = topC[0]?.[1] || 1;
+  const cidHtml = topC.map(([cid, px], i) => {
+    const pct = (px / maxCpx * 100).toFixed(1);
+    return `<div class="list-item">
+      <span class="li-rank">${i + 1}</span>
+      <span class="li-name">Country ${cid}</span>
+      <div class="li-bar-wrap"><div class="li-bar" style="width:${pct}%"></div></div>
+      <span class="li-val">${fmt(px)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tab-countries').innerHTML = cidHtml;
+}
+
+function flyTo(rid, name, pixels, url) {
+  const [lat, lng] = coords(rid);
+  map.flyTo([lat, lng], 9, { duration: 1.0 });
+  L.popup({ maxWidth: 240 })
+    .setLatLng([lat, lng])
+    .setContent(`<div class="popup">
+      <div class="popup-name">${name}</div>
+      <div class="popup-row"><strong>Pixels</strong> ${pixels.toLocaleString()}</div>
+      ${url ? `<a class="popup-link" href="${url}" target="_blank">Open in wplace ↗</a>` : ''}
+    </div>`)
+    .openOn(map);
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-heat').classList.toggle('active', m === 'heat');
+  document.getElementById('btn-dots').classList.toggle('active', m === 'dots');
+  if (!heat && !dots) return;
+  if (m === 'heat') {
+    if (dots && map.hasLayer(dots)) map.removeLayer(dots);
+    if (heat && !map.hasLayer(heat)) heat.addTo(map);
+  } else {
+    if (heat && map.hasLayer(heat)) map.removeLayer(heat);
+    if (dots && !map.hasLayer(dots)) dots.addTo(map);
+  }
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.list-tab').forEach((b, i) =>
+    b.classList.toggle('active', ['regions','countries'][i] === t)
+  );
+  document.getElementById('tab-regions').classList.toggle('visible', t === 'regions');
+  document.getElementById('tab-countries').classList.toggle('visible', t === 'countries');
+}
+</script>
+</body>
+</html>
