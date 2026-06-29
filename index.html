@@ -26,7 +26,6 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
-
 #app { display: flex; height: 100vh; }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
@@ -36,7 +35,6 @@ aside {
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden; z-index: 500;
 }
-
 #s-head { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 #s-head h1 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 #s-head h1 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
@@ -46,7 +44,7 @@ aside {
 
 /* Upload */
 #drop {
-  margin: 12px; border: 1.5px dashed var(--dim); border-radius: 8px;
+  margin: 12px 12px 0; border: 1.5px dashed var(--dim); border-radius: 8px;
   padding: 16px 12px; text-align: center; cursor: pointer;
   transition: border-color .2s, background .2s; flex-shrink: 0;
 }
@@ -59,20 +57,41 @@ aside {
 #drop.compact .ds { margin-top: 0; }
 #fi { display: none; }
 
+/* Browse-all button */
+#browse-btn {
+  margin: 8px 12px 0; padding: 8px 12px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--raised);
+  color: var(--muted); font-family: var(--font); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: calc(100% - 24px); flex-shrink: 0;
+}
+#browse-btn:hover { border-color: var(--accent); color: var(--text); }
+#browse-btn.active {
+  border-color: var(--accent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
+}
+.bdot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+#bspin {
+  width: 11px; height: 11px; border: 1.5px solid var(--dim);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .7s linear infinite; display: none; flex-shrink: 0;
+}
+
 /* Snap tabs */
-#snaptabs { display: none; padding: 0 12px 10px; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
+#snaptabs { display: none; padding: 8px 12px 0; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
 .stab {
   font-size: 11px; font-family: var(--mono); padding: 3px 9px;
   border-radius: 20px; border: 1px solid var(--border);
   background: transparent; color: var(--muted); cursor: pointer;
-  transition: all .15s; white-space: nowrap; max-width: 120px;
+  transition: all .15s; white-space: nowrap; max-width: 130px;
   overflow: hidden; text-overflow: ellipsis;
 }
 .stab:hover { border-color: var(--accent); color: var(--text); }
 .stab.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
 /* Stats */
-#stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 0 12px 12px; flex-shrink: 0; }
+#stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 10px 12px; flex-shrink: 0; }
 .sc { background: var(--raised); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; }
 .sc .sl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
 .sc .sv { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--cyan); margin-top: 3px; }
@@ -83,16 +102,34 @@ aside {
 .lt:hover { color: var(--text); }
 .lt.on { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* Scroll list */
-#lscroll { overflow-y: auto; flex: 1; }
-#lscroll::-webkit-scrollbar { width: 3px; }
-#lscroll::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
-.lsec { display: none; }
-.lsec.vis { display: block; }
+/* Search */
+#searchbox { padding: 7px 12px 3px; flex-shrink: 0; position: relative; }
+#search-icon {
+  position: absolute; left: 21px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); pointer-events: none;
+}
+#searchinput {
+  width: 100%; background: var(--raised); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 9px 5px 28px;
+  font-family: var(--font); font-size: 12px; color: var(--text);
+  outline: none; transition: border-color .15s;
+}
+#searchinput:focus { border-color: var(--accent); }
+#searchinput::placeholder { color: var(--muted); }
+#srcount { font-size: 10px; color: var(--dim); padding: 2px 12px; flex-shrink: 0; min-height: 17px; }
 
+/* Scroll area — two absolute panels */
+#lscroll { flex: 1; position: relative; overflow: hidden; }
+.ls-panel { position: absolute; inset: 0; overflow-y: auto; }
+.ls-panel::-webkit-scrollbar { width: 3px; }
+.ls-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#lr-panel { display: block; }
+#lc-panel { display: none; }
+
+/* List items — fixed height for virtual scroll */
 .li {
   display: flex; align-items: center; gap: 7px;
-  padding: 6px 12px; cursor: pointer;
+  padding: 0 12px; cursor: pointer; height: 33px; flex-shrink: 0;
   transition: background .12s; border-bottom: 1px solid #0a0d13;
 }
 .li:hover { background: var(--raised); }
@@ -105,7 +142,6 @@ aside {
 /* ── Map ─────────────────────────────────────────────────── */
 #mwrap { flex: 1; position: relative; }
 #map { width: 100%; height: 100%; }
-
 #mcontrols { position: absolute; top: 14px; right: 14px; z-index: 400; display: flex; gap: 6px; align-items: center; }
 .mbtn {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -115,7 +151,6 @@ aside {
 }
 .mbtn:hover { color: var(--text); border-color: var(--dim); }
 .mbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-
 #minfo {
   font-family: var(--mono); font-size: 11px; color: var(--muted);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -131,18 +166,14 @@ aside {
   border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px;
 }
 #mload.vis { display: flex; }
-#mload .spin {
-  width: 18px; height: 18px; border: 2px solid var(--dim);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: spin .7s linear infinite;
-}
+#mload .spin { width: 18px; height: 18px; border: 2px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #mload span { font-size: 13px; color: var(--muted); }
 
 /* Empty */
 #empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: 10px; }
 #empty .ei { font-size: 48px; opacity: 0.25; }
-#empty .et { font-size: 13px; color: var(--muted); }
+#empty .et { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
 
 /* Popup */
 .leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; box-shadow: 0 12px 40px rgba(0,0,0,.65) !important; padding: 0 !important; }
@@ -172,6 +203,12 @@ aside {
   </div>
   <input type="file" id="fi" accept=".csv" multiple>
 
+  <button id="browse-btn" onclick="browseAll()">
+    <span class="bdot"></span>
+    <span id="bspin"></span>
+    <span id="browse-label">Browse All 262,144 Regions</span>
+  </button>
+
   <div id="snaptabs"></div>
 
   <div id="stats">
@@ -183,9 +220,18 @@ aside {
     <button class="lt on" onclick="switchTab('r')">Regions</button>
     <button class="lt" onclick="switchTab('c')">Countries</button>
   </div>
+
+  <div id="searchbox">
+    <svg id="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="searchinput" type="text" placeholder="Search name or region ID…" oninput="onSearch(this.value)">
+  </div>
+  <div id="srcount"></div>
+
   <div id="lscroll">
-    <div class="lsec vis" id="lr"></div>
-    <div class="lsec" id="lc"></div>
+    <div id="lr-panel" class="ls-panel"></div>
+    <div id="lc-panel" class="ls-panel"></div>
   </div>
 </aside>
 
@@ -197,7 +243,10 @@ aside {
     <button class="mbtn" id="b-heat" onclick="setMode('heat')">Density</button>
   </div>
   <div id="mload"><div class="spin"></div><span>Rendering…</span></div>
-  <div id="empty"><div class="ei">🌍</div><div class="et">Drop a CSV to begin</div></div>
+  <div id="empty">
+    <div class="ei">🌍</div>
+    <div class="et">Drop a CSV to view leaderboard data,<br>or click <b style="color:var(--accent)">Browse All 262,144 Regions</b> to explore the grid</div>
+  </div>
 </div>
 </div>
 
@@ -224,19 +273,30 @@ function gradColor(t) {
     const [t0, c0] = STOPS[i-1], [t1, c1] = STOPS[i];
     if (t <= t1) {
       const f = (t - t0) / (t1 - t0);
-      return `rgb(${c0.map((v,j)=>v+f*(c1[j]-v)|0).join(',')})`;
+      return `rgb(${c0.map((v,j) => v + f*(c1[j]-v)|0).join(',')})`;
     }
   }
-  return `rgb(255,45,111)`;
+  return 'rgb(255,45,111)';
 }
 
-// ── Coord computation (cached on each row as ._ll) ────────────────────────────
+// ── Coord helpers ─────────────────────────────────────────────────────────────
 function regionCoords(rid) {
   const x = (rid - 1) % 512, y = (rid - 1) / 512 | 0;
   const lng = ((x + 0.5) / 512) * 360 - 180;
   const n   = Math.PI - 2 * Math.PI * (y + 0.5) / 512;
   const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   return [lat, lng];
+}
+
+// Inverse: lat/lng → nearest region ID
+function latlngToRegionId(lat, lng) {
+  lng = ((lng % 360) + 360) % 360;
+  if (lng >= 180) lng -= 360;
+  const x      = Math.min(511, Math.max(0, Math.floor((lng + 180) / 360 * 512)));
+  const latRad = Math.min(1.484, Math.max(-1.484, lat * Math.PI / 180));
+  const n      = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+  const y      = Math.min(511, Math.max(0, Math.floor((Math.PI - n) / (2 * Math.PI) * 512)));
+  return y * 512 + x + 1;
 }
 
 // ── Format ────────────────────────────────────────────────────────────────────
@@ -252,29 +312,29 @@ function animCount(el, to) {
   requestAnimationFrame(tick);
 }
 
-// ── Canvas overlay (shows ALL regions) ───────────────────────────────────────
+// ── Canvas overlay ────────────────────────────────────────────────────────────
 const CanvasLayer = L.Layer.extend({
   onAdd(map) {
     this._c = document.createElement('canvas');
     this._c.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
     map.getContainer().appendChild(this._c);
-
     this._onResize();
-    map.on('resize',  this._onResize, this);
+    map.on('resize', this._onResize, this);
     map.on('moveend zoomend', this._draw, this);
-    // Smooth pan for small datasets
-    if ((this._rows?.length||0) < 8000) map.on('move', this._draw, this);
-    else { map.on('movestart', ()=>{ this._c.style.opacity='0'; }, this); map.on('moveend', ()=>{ this._c.style.opacity='1'; }, this); }
+    const n = this._rows?.length || 0;
+    if (n < 8000) {
+      map.on('move', this._draw, this);
+    } else {
+      map.on('movestart', () => { this._c.style.opacity = '0'; }, this);
+      map.on('moveend',   () => { this._c.style.opacity = '1'; }, this);
+    }
     this._draw();
   },
   onRemove(map) {
     this._c.remove();
     map.off('resize moveend zoomend move movestart', null, this);
   },
-  setRows(rows) {
-    this._rows = rows;
-    if (this._c) this._draw();
-  },
+  setRows(rows) { this._rows = rows; if (this._c) this._draw(); },
   _onResize() {
     const s = this._map.getSize();
     this._c.width = s.x; this._c.height = s.y;
@@ -288,41 +348,150 @@ const CanvasLayer = L.Layer.extend({
     ctx.clearRect(0, 0, W, H);
 
     const b      = map.getBounds();
-    const s      = b.getSouthWest(), n = b.getNorthEast();
-    const logMax = Math.log1p(rows[0].pixels);
+    const sw     = b.getSouthWest(), ne = b.getNorthEast();
+    const logMax = Math.log1p(rows[0].pixels) || 1;
+    const isUniform = rows[0].pixels === 0;        // synthetic "browse all" dataset
     const zoom   = map.getZoom();
     const ds     = zoom < 3 ? 2 : zoom < 5 ? 2 : zoom < 8 ? 3 : zoom < 11 ? 4 : 6;
     const half   = ds >> 1;
 
-    // Batch by color bucket for fewer fillStyle changes
-    const buckets = new Array(20).fill(null).map(()=>[]);
-
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i], ll = r._ll;
-      if (ll[0] < s.lat || ll[0] > n.lat) continue;
-      // Handle antimeridian wrap
-      let lng = ll[1];
-      if (n.lng > 180) { if (lng < 0) lng += 360; }
-      else if (s.lng < -180) { if (lng > 0) lng -= 360; }
-      if (lng < s.lng || lng > n.lng) continue;
-
-      const t  = Math.log1p(r.pixels) / logMax;
-      const bi = Math.min((t * 20) | 0, 19);
-      buckets[bi].push(i);
-    }
-
-    for (let bi = 0; bi < 20; bi++) {
-      if (!buckets[bi].length) continue;
-      ctx.fillStyle = gradColor(bi / 19);
-      for (const i of buckets[bi]) {
+    if (isUniform) {
+      // All regions visible in accent color
+      ctx.fillStyle = 'rgba(124,111,247,0.7)';
+      for (let i = 0; i < rows.length; i++) {
+        const ll = rows[i]._ll;
+        if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
+        let lng = ll[1];
+        if (ne.lng > 180) { if (lng < 0) lng += 360; }
+        else if (sw.lng < -180) { if (lng > 0) lng -= 360; }
+        if (lng < sw.lng || lng > ne.lng) continue;
         const pt = map.latLngToContainerPoint(rows[i]._ll);
         ctx.fillRect(pt.x - half | 0, pt.y - half | 0, ds, ds);
+      }
+    } else {
+      // Gradient bucketing
+      const buckets = new Array(20).fill(null).map(() => []);
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i], ll = r._ll;
+        if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
+        let lng = ll[1];
+        if (ne.lng > 180) { if (lng < 0) lng += 360; }
+        else if (sw.lng < -180) { if (lng > 0) lng -= 360; }
+        if (lng < sw.lng || lng > ne.lng) continue;
+        const t  = Math.log1p(r.pixels) / logMax;
+        const bi = Math.min((t * 20) | 0, 19);
+        buckets[bi].push(i);
+      }
+      for (let bi = 0; bi < 20; bi++) {
+        if (!buckets[bi].length) continue;
+        ctx.fillStyle = gradColor(bi / 19);
+        for (const i of buckets[bi]) {
+          const pt = map.latLngToContainerPoint(rows[i]._ll);
+          ctx.fillRect(pt.x - half | 0, pt.y - half | 0, ds, ds);
+        }
       }
     }
   }
 });
 
-// ── Heatmap layer (Leaflet.heat loaded on demand via script tag) ──────────────
+// ── Virtual List ──────────────────────────────────────────────────────────────
+// Renders only the ~20 visible items at any scroll position.
+// Handles 262,144+ rows at native scroll speed with zero DOM bloat.
+class VirtualList {
+  constructor(container, itemH = 33) {
+    this._el    = container;
+    this._itemH = itemH;
+    this._all   = [];
+    this._rows  = [];
+    this._maxPx = 1;
+    this._key   = null;
+
+    // spacer: establishes total scroll height
+    // inner:  absolutely positioned slab that gets transform-shifted
+    const spacer = document.createElement('div');
+    spacer.style.cssText = 'position:relative;width:100%;';
+    const inner = document.createElement('div');
+    inner.style.cssText = 'position:absolute;top:0;left:0;right:0;';
+    spacer.appendChild(inner);
+    container.appendChild(spacer);
+    this._spacer = spacer;
+    this._inner  = inner;
+
+    container.addEventListener('scroll', () => this._paint(), { passive: true });
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => { this._key = null; this._paint(); }).observe(container);
+    }
+  }
+
+  load(rows, maxPx) {
+    this._all   = rows;
+    this._maxPx = maxPx || 1;
+    this._el.scrollTop = 0;
+    this._key   = null;
+    this.filter('');
+  }
+
+  filter(q) {
+    const s = q.trim().toLowerCase();
+    this._rows = s
+      ? this._all.filter(r =>
+          r.name.toLowerCase().includes(s) ||
+          String(r.regionId).includes(s))
+      : this._all;
+    this._el.scrollTop = 0;
+    this._key = null;
+    this._paint();
+    // Update count label
+    const n = this._rows.length, tot = this._all.length;
+    const el = document.getElementById('srcount');
+    if (el) el.textContent = n < tot
+      ? `${n.toLocaleString()} of ${tot.toLocaleString()} match`
+      : `${n.toLocaleString()} regions`;
+  }
+
+  _paint() {
+    const { _el: el, _itemH: ih, _spacer, _inner, _rows: rows, _maxPx: mx } = this;
+    const n = rows.length;
+    _spacer.style.height = `${n * ih}px`;
+
+    const viewH = el.clientHeight || 400;
+    const top   = el.scrollTop;
+    const start = Math.max(0, Math.floor(top / ih) - 5);
+    const end   = Math.min(n, start + Math.ceil(viewH / ih) + 10);
+
+    const key = `${start}:${end}:${n}`;
+    if (key === this._key) return;
+    this._key = key;
+
+    _inner.style.transform = `translateY(${start * ih}px)`;
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) {
+      const r   = rows[i];
+      const div = document.createElement('div');
+      div.className = 'li';
+      const pct = mx > 0 ? (r.pixels / mx * 100).toFixed(1) : 0;
+      div.innerHTML =
+        `<span class="lrank">${r.rank}</span>` +
+        `<span class="lname">${r.name}</span>` +
+        `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>` +
+        `<span class="lval">${r.pixels > 0 ? fmt(r.pixels) : '—'}</span>`;
+      const cap = r;
+      div.addEventListener('click', () => flyTo(cap));
+      frag.appendChild(div);
+    }
+    _inner.replaceChildren(frag);
+  }
+}
+
+let vlist = null;
+function getVlist() {
+  if (!vlist) vlist = new VirtualList(document.getElementById('lr-panel'));
+  return vlist;
+}
+function onSearch(val) { getVlist().filter(val); }
+
+// ── Heatmap layer ─────────────────────────────────────────────────────────────
 let heatLib   = false;
 let heatLayer = null;
 let dotsLayer = null;
@@ -339,6 +508,7 @@ function ensureHeat(cb) {
 // ── State ─────────────────────────────────────────────────────────────────────
 const snaps = {};
 let active  = null;
+let rowById = new Map();  // regionId → row (O(1) click lookup)
 
 // ── File handling ─────────────────────────────────────────────────────────────
 const drop = document.getElementById('drop');
@@ -350,13 +520,17 @@ drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('
 fi.addEventListener('change', () => { loadFiles([...fi.files]); fi.value=''; });
 
 function loadFiles(files) {
-  files.filter(f=>f.name.endsWith('.csv')).forEach(f => {
-    Papa.parse(f, { header:true, skipEmptyLines:true, complete({data}) {
+  files.filter(f => f.name.endsWith('.csv')).forEach(f => {
+    Papa.parse(f, { header: true, skipEmptyLines: true, complete({ data }) {
       const rows = data
         .filter(r => r.regionId && +r.pixels > 0)
         .map(r => {
-          const row = { rank:+r.rank, regionId:+r.regionId, name:r.name||`#${r.regionId}`, pixels:+r.pixels, countryId:+r.countryId||0, url:r.url||'' };
-          row._ll = regionCoords(row.regionId);   // pre-compute once
+          const row = {
+            rank: +r.rank, regionId: +r.regionId,
+            name: r.name || `Region #${r.regionId}`,
+            pixels: +r.pixels, countryId: +r.countryId || 0, url: r.url || ''
+          };
+          row._ll = regionCoords(row.regionId);
           return row;
         });
       snaps[f.name] = rows;
@@ -366,12 +540,48 @@ function loadFiles(files) {
   });
 }
 
+// ── Browse all 262,144 regions ─────────────────────────────────────────────────
+const ALL_KEY = '[All 262K Regions]';
+
+function browseAll() {
+  // Already generated — just switch to it
+  if (snaps[ALL_KEY]) { setActive(ALL_KEY); return; }
+
+  const btn   = document.getElementById('browse-btn');
+  const label = document.getElementById('browse-label');
+  const spin  = document.getElementById('bspin');
+  btn.style.pointerEvents = 'none';
+  label.textContent = 'Generating…';
+  spin.style.display = 'block';
+
+  // Yield two frames so the browser paints the spinner before the heavy loop
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const rows = [];
+    for (let id = 1; id <= 262144; id++) {
+      const row = { rank: id, regionId: id, name: `Region #${id}`, pixels: 0, countryId: 0, url: '' };
+      row._ll = regionCoords(id);
+      rows.push(row);
+    }
+    snaps[ALL_KEY] = rows;
+    rebuildTabs();
+    setActive(ALL_KEY);
+
+    label.textContent = 'Browse All 262,144 Regions';
+    spin.style.display = 'none';
+    btn.style.pointerEvents = '';
+  }));
+}
+
+// ── Tab management ────────────────────────────────────────────────────────────
 function rebuildTabs() {
   const keys = Object.keys(snaps);
   const bar  = document.getElementById('snaptabs');
   bar.style.display = keys.length > 1 ? 'flex' : 'none';
   bar.innerHTML = keys.map(k => {
-    const label = k.replace(/\.csv$/i,'').replace(/region_leaderboard_?/i,'') || k;
+    const isAll = k === ALL_KEY;
+    const label = isAll
+      ? '✦ All 262K'
+      : (k.replace(/\.csv$/i, '').replace(/region_leaderboard_?/i, '') || k).slice(0, 16);
     return `<button class="stab${k===active?' on':''}" title="${k}" onclick="setActive(${JSON.stringify(k)})">${label}</button>`;
   }).join('');
   drop.classList.toggle('compact', keys.length > 0);
@@ -380,7 +590,8 @@ function rebuildTabs() {
 
 function setActive(key) {
   active = key;
-  document.querySelectorAll('.stab').forEach(t => t.classList.toggle('on', t.title===key));
+  document.querySelectorAll('.stab').forEach(t => t.classList.toggle('on', t.title === key));
+  document.getElementById('browse-btn').classList.toggle('active', key === ALL_KEY);
   render(snaps[key]);
 }
 
@@ -388,107 +599,149 @@ function setActive(key) {
 function render(rows) {
   document.getElementById('empty').style.display = 'none';
 
-  // Stats
-  const totalPx = rows.reduce((s,r)=>s+r.pixels,0);
-  const maxPx   = rows[0]?.pixels || 1;
+  const totalPx = rows.reduce((s, r) => s + r.pixels, 0);
+  const maxPx   = rows[0]?.pixels || 0;
   const numEl   = document.getElementById('big-num');
   numEl.classList.remove('idle');
-  animCount(numEl, totalPx);
+  if (totalPx > 0) {
+    animCount(numEl, totalPx);
+  } else {
+    numEl.textContent = '—';
+    numEl.classList.add('idle');
+  }
   document.getElementById('s-reg').textContent = rows.length.toLocaleString();
-  document.getElementById('s-max').textContent = fmt(maxPx);
+  document.getElementById('s-max').textContent = maxPx > 0 ? fmt(maxPx) : '—';
   document.getElementById('minfo').textContent = `${rows.length.toLocaleString()} regions`;
 
-  // Rebuild layers
+  // Fast lookup index for click handler
+  rowById = new Map(rows.map(r => [r.regionId, r]));
+
+  // Canvas layer
   if (dotsLayer) { map.removeLayer(dotsLayer); dotsLayer = null; }
   if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-
   dotsLayer = new CanvasLayer();
   dotsLayer.setRows(rows);
 
-  // Sidebar — regions (all, but only render 100 DOM nodes, rest loaded on scroll)
-  const regHtml = rows.slice(0, 100).map(r => {
-    const pct = (r.pixels / maxPx * 100).toFixed(1);
-    return `<div class="li" onclick="flyTo(${JSON.stringify(r)})">
-      <span class="lrank">${r.rank}</span>
-      <span class="lname">${r.name}</span>
-      <div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>
-      <span class="lval">${fmt(r.pixels)}</span>
-    </div>`;
-  }).join('');
-  document.getElementById('lr').innerHTML = regHtml + (rows.length>100?`<div class="li"><span class="lname" style="color:var(--muted)">…${(rows.length-100).toLocaleString()} more regions in CSV</span></div>`:'');
+  // Virtual list — clear search, reload
+  document.getElementById('searchinput').value = '';
+  getVlist().load(rows, maxPx);
 
-  // Countries
+  // Countries tab
   const byCid = {};
-  rows.forEach(r => { if (r.countryId) byCid[r.countryId]=(byCid[r.countryId]||0)+r.pixels; });
-  const topC  = Object.entries(byCid).sort((a,b)=>b[1]-a[1]).slice(0,50);
-  const maxC  = topC[0]?.[1]||1;
-  document.getElementById('lc').innerHTML = topC.map(([cid,px],i)=>{
-    const pct=(px/maxC*100).toFixed(1);
-    return `<div class="li"><span class="lrank">${i+1}</span><span class="lname">Country ${cid}</span><div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div><span class="lval">${fmt(px)}</span></div>`;
-  }).join('');
+  rows.forEach(r => { if (r.countryId) byCid[r.countryId] = (byCid[r.countryId]||0) + r.pixels; });
+  const topC = Object.entries(byCid).sort((a, b) => b[1]-a[1]).slice(0, 200);
+  const maxC = topC[0]?.[1] || 1;
+  document.getElementById('lc-panel').innerHTML = topC.length
+    ? topC.map(([cid,px],i) => {
+        const pct = (px/maxC*100).toFixed(1);
+        return `<div class="li"><span class="lrank">${i+1}</span><span class="lname">Country ${cid}</span><div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div><span class="lval">${fmt(px)}</span></div>`;
+      }).join('')
+    : `<div class="li"><span class="lname" style="color:var(--muted)">No country data in this snapshot</span></div>`;
 
   setMode(mode);
 }
 
+// ── flyTo ─────────────────────────────────────────────────────────────────────
 function flyTo(r) {
   map.flyTo(r._ll, 9, { duration: 1.0 });
   L.popup({ maxWidth: 240 }).setLatLng(r._ll).setContent(`
     <div class="pu">
       <div class="pu-name">${r.name}</div>
+      <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
       <div class="pu-row"><b>Rank</b> #${r.rank}</div>
-      <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
-      ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
+      <div class="pu-row"><b>Pixels</b> ${r.pixels > 0 ? r.pixels.toLocaleString() : '—'}</div>
+      ${r.url ? `<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>` : ''}
     </div>`).openOn(map);
 }
 
+// ── setMode ───────────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
   document.getElementById('b-pts').classList.toggle('on', m==='pts');
   document.getElementById('b-heat').classList.toggle('on', m==='heat');
 
   if (m === 'pts') {
-    if (heatLayer) { map.removeLayer(heatLayer); }
+    if (heatLayer) map.removeLayer(heatLayer);
     if (dotsLayer) dotsLayer.addTo(map);
   } else {
     if (dotsLayer && map.hasLayer(dotsLayer)) map.removeLayer(dotsLayer);
     const rows = active ? snaps[active] : null;
     if (!rows) return;
-    const maxPx = rows[0]?.pixels || 1;
-    const logMax = Math.log1p(maxPx);
-    const pts = rows.map(r => [...r._ll, Math.log1p(r.pixels)/logMax]);
-
+    const maxPx  = rows[0]?.pixels || 1;
+    const logMax = Math.log1p(maxPx) || 1;
+    const pts    = rows.map(r => [...r._ll, Math.log1p(r.pixels) / logMax || 0.3]);
     ensureHeat(() => {
       if (heatLayer) map.removeLayer(heatLayer);
       heatLayer = L.heatLayer(pts, {
-        radius:20, blur:28, maxZoom:7, max:1.0,
-        gradient:{0.0:'#1a0540',0.3:'#5b21b6',0.55:'#7c6ff7',0.75:'#22d3ee',0.9:'#f59e0b',1.0:'#ff2d6f'}
+        radius: 20, blur: 28, maxZoom: 7, max: 1.0,
+        gradient: {0.0:'#1a0540',0.3:'#5b21b6',0.55:'#7c6ff7',0.75:'#22d3ee',0.9:'#f59e0b',1.0:'#ff2d6f'}
       }).addTo(map);
     });
   }
 }
 
+// ── switchTab ─────────────────────────────────────────────────────────────────
 function switchTab(t) {
-  document.querySelectorAll('.lt').forEach((b,i)=>b.classList.toggle('on',['r','c'][i]===t));
-  document.getElementById('lr').classList.toggle('vis', t==='r');
-  document.getElementById('lc').classList.toggle('vis', t==='c');
+  document.querySelectorAll('.lt').forEach((b, i) => b.classList.toggle('on', ['r','c'][i]===t));
+  document.getElementById('lr-panel').style.display    = t==='r' ? 'block' : 'none';
+  document.getElementById('lc-panel').style.display    = t==='c' ? 'block' : 'none';
+  document.getElementById('searchbox').style.display   = t==='r' ? ''      : 'none';
+  document.getElementById('srcount').style.display     = t==='r' ? ''      : 'none';
 }
 
-// ── Map click → nearest region popup ─────────────────────────────────────────
+// ── Map click → nearest region (O(1) grid lookup + neighbourhood fallback) ────
 map.on('click', e => {
   if (mode !== 'pts' || !active) return;
   const rows = snaps[active];
   if (!rows?.length) return;
+
   const cp = e.containerPoint;
+  const { lat, lng } = e.latlng;
+
+  // Step 1 — direct grid cell lookup
+  const targetId = latlngToRegionId(lat, lng);
+  const direct   = rowById.get(targetId);
   let best = null, bestD = Infinity;
+
+  if (direct) {
+    const pt = map.latLngToContainerPoint(direct._ll);
+    bestD = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
+    best  = direct;
+    if (bestD < 900) { flyTo(direct); return; }  // ~30 px — accept direct hit
+  }
+
+  // Step 2 — check 5×5 neighbourhood (handles sparse CSVs or projection rounding)
+  const cx = (targetId-1) % 512, cy = (targetId-1) / 512 | 0;
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (!dx && !dy) continue;
+      const nx = cx+dx, ny = cy+dy;
+      if (nx < 0 || nx > 511 || ny < 0 || ny > 511) continue;
+      const r = rowById.get(ny*512+nx+1);
+      if (!r) continue;
+      const pt = map.latLngToContainerPoint(r._ll);
+      const d  = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
+      if (d < bestD) { bestD = d; best = r; }
+    }
+  }
+  if (best && bestD < 400) { flyTo(best); return; }
+
+  // Step 3 — visible-bounds scan (last resort for very sparse data)
+  const b  = map.getBounds();
+  const sw = b.getSouthWest(), ne = b.getNorthEast();
   for (const r of rows) {
+    const ll = r._ll;
+    if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
+    let lngr = ll[1];
+    if (ne.lng > 180) { if (lngr < 0) lngr += 360; }
+    else if (sw.lng < -180) { if (lngr > 0) lngr -= 360; }
+    if (lngr < sw.lng || lngr > ne.lng) continue;
     const pt = map.latLngToContainerPoint(r._ll);
     const d  = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
     if (d < bestD) { bestD = d; best = r; }
   }
-  if (best && bestD < 400) flyTo(best);   // 20px radius
+  if (best && bestD < 400) flyTo(best);
 });
 </script>
 </body>
 </html>
-
-
