@@ -42,41 +42,41 @@ aside {
 #big-num.idle { color: var(--dim); }
 #big-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
 
-/* Upload */
+/* ── Load sources ─────────────────────────────────────────── */
+#sources { padding: 12px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+
+/* Drop zone */
 #drop {
-  margin: 12px 12px 0; border: 1.5px dashed var(--dim); border-radius: 8px;
-  padding: 16px 12px; text-align: center; cursor: pointer;
-  transition: border-color .2s, background .2s; flex-shrink: 0;
+  border: 1.5px dashed var(--dim); border-radius: 8px;
+  padding: 11px 12px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+  display: flex; align-items: center; gap: 10px;
 }
 #drop:hover, #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
-#drop .di { font-size: 20px; margin-bottom: 5px; }
-#drop .dt { font-size: 13px; font-weight: 500; }
-#drop .ds { font-size: 11px; color: var(--muted); margin-top: 2px; }
-#drop.compact { padding: 9px 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
-#drop.compact .di { font-size: 15px; margin-bottom: 0; }
-#drop.compact .ds { margin-top: 0; }
+#drop .di { font-size: 16px; flex-shrink: 0; }
+#drop .dt { font-size: 12px; font-weight: 500; }
+#drop .ds { font-size: 10px; color: var(--muted); margin-top: 1px; }
 #fi { display: none; }
 
-/* Browse-all button */
-#browse-btn {
-  margin: 8px 12px 0; padding: 8px 12px; border-radius: 7px;
-  border: 1px solid var(--border); background: var(--raised);
-  color: var(--muted); font-family: var(--font); font-size: 12px; font-weight: 500;
-  cursor: pointer; transition: all .15s;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  width: calc(100% - 24px); flex-shrink: 0;
+/* GitHub row */
+#gh-row { display: flex; gap: 6px; align-items: center; }
+#gh-icon { font-size: 15px; flex-shrink: 0; }
+#gh-input {
+  flex: 1; background: var(--raised); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 9px;
+  font-family: var(--font); font-size: 11px; color: var(--text);
+  outline: none; transition: border-color .15s; min-width: 0;
 }
-#browse-btn:hover { border-color: var(--accent); color: var(--text); }
-#browse-btn.active {
-  border-color: var(--accent); color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
+#gh-input:focus { border-color: var(--accent); }
+#gh-input::placeholder { color: var(--muted); }
+#gh-load {
+  flex-shrink: 0; background: var(--raised); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px;
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap;
 }
-.bdot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-#bspin {
-  width: 11px; height: 11px; border: 1.5px solid var(--dim);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: spin .7s linear infinite; display: none; flex-shrink: 0;
-}
+#gh-load:hover { border-color: var(--accent); color: var(--accent); }
+#gh-status { font-size: 10px; color: var(--muted); padding: 0 2px; min-height: 14px; }
 
 /* Snap tabs */
 #snaptabs { display: none; padding: 8px 12px 0; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
@@ -104,10 +104,7 @@ aside {
 
 /* Search */
 #searchbox { padding: 7px 12px 3px; flex-shrink: 0; position: relative; }
-#search-icon {
-  position: absolute; left: 21px; top: 50%; transform: translateY(-50%);
-  color: var(--muted); pointer-events: none;
-}
+#search-icon { position: absolute; left: 21px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 #searchinput {
   width: 100%; background: var(--raised); border: 1px solid var(--border);
   border-radius: 6px; padding: 5px 9px 5px 28px;
@@ -118,7 +115,7 @@ aside {
 #searchinput::placeholder { color: var(--muted); }
 #srcount { font-size: 10px; color: var(--dim); padding: 2px 12px; flex-shrink: 0; min-height: 17px; }
 
-/* Scroll area — two absolute panels */
+/* Scroll area */
 #lscroll { flex: 1; position: relative; overflow: hidden; }
 .ls-panel { position: absolute; inset: 0; overflow-y: auto; }
 .ls-panel::-webkit-scrollbar { width: 3px; }
@@ -128,16 +125,25 @@ aside {
 
 /* List items — fixed height for virtual scroll */
 .li {
-  display: flex; align-items: center; gap: 7px;
-  padding: 0 12px; cursor: pointer; height: 33px; flex-shrink: 0;
-  transition: background .12s; border-bottom: 1px solid #0a0d13;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px 0 12px; cursor: default; height: 34px; flex-shrink: 0;
+  border-bottom: 1px solid #0a0d13; transition: background .1s;
 }
 .li:hover { background: var(--raised); }
 .lrank { font-family: var(--mono); font-size: 10px; color: var(--dim); width: 22px; text-align: right; flex-shrink: 0; }
 .lname { font-size: 12px; color: #a0aabb; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lbar-w { width: 36px; flex-shrink: 0; }
+.lbar-w { width: 32px; flex-shrink: 0; }
 .lbar { height: 2px; background: var(--accent); border-radius: 1px; opacity: 0.6; }
-.lval { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 52px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.lval { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 46px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+/* Go-to button on each row */
+.lgo {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--dim); cursor: pointer; font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.lgo:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* ── Map ─────────────────────────────────────────────────── */
 #mwrap { flex: 1; position: relative; }
@@ -196,18 +202,25 @@ aside {
     <div id="big-label">total pixels painted</div>
   </div>
 
-  <div id="drop" onclick="fi.click()">
-    <div class="di">📂</div>
-    <div class="dt">Drop CSV files here</div>
-    <div class="ds">Multiple snapshots supported</div>
-  </div>
-  <input type="file" id="fi" accept=".csv" multiple>
+  <!-- Load sources: file upload OR GitHub URL -->
+  <div id="sources">
+    <div id="drop" onclick="fi.click()">
+      <div class="di">📂</div>
+      <div>
+        <div class="dt">Drop or click to upload CSV</div>
+        <div class="ds">Multiple snapshots supported</div>
+      </div>
+    </div>
+    <input type="file" id="fi" accept=".csv" multiple>
 
-  <button id="browse-btn" onclick="browseAll()">
-    <span class="bdot"></span>
-    <span id="bspin"></span>
-    <span id="browse-label">Browse All 262,144 Regions</span>
-  </button>
+    <div id="gh-row">
+      <span id="gh-icon">🐙</span>
+      <input id="gh-input" type="text" placeholder="Paste GitHub CSV URL and press Enter…"
+             onkeydown="if(event.key==='Enter') loadFromGithub()">
+      <button id="gh-load" onclick="loadFromGithub()">Load</button>
+    </div>
+    <div id="gh-status"></div>
+  </div>
 
   <div id="snaptabs"></div>
 
@@ -245,7 +258,7 @@ aside {
   <div id="mload"><div class="spin"></div><span>Rendering…</span></div>
   <div id="empty">
     <div class="ei">🌍</div>
-    <div class="et">Drop a CSV to view leaderboard data,<br>or click <b style="color:var(--accent)">Browse All 262,144 Regions</b> to explore the grid</div>
+    <div class="et">Upload a CSV file,<br>or paste a GitHub URL above</div>
   </div>
 </div>
 </div>
@@ -259,7 +272,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   subdomains: 'abcd', maxZoom: 19
 }).addTo(map);
 
-// ── Color gradient (deep purple → violet → cyan → amber → hot pink) ───────────
+// ── Color gradient ────────────────────────────────────────────────────────────
 const STOPS = [
   [0.00, [26,  5, 64]],
   [0.20, [91, 33,182]],
@@ -279,7 +292,7 @@ function gradColor(t) {
   return 'rgb(255,45,111)';
 }
 
-// ── Coord helpers ─────────────────────────────────────────────────────────────
+// ── Coord computation ─────────────────────────────────────────────────────────
 function regionCoords(rid) {
   const x = (rid - 1) % 512, y = (rid - 1) / 512 | 0;
   const lng = ((x + 0.5) / 512) * 360 - 180;
@@ -288,22 +301,11 @@ function regionCoords(rid) {
   return [lat, lng];
 }
 
-// Inverse: lat/lng → nearest region ID
-function latlngToRegionId(lat, lng) {
-  lng = ((lng % 360) + 360) % 360;
-  if (lng >= 180) lng -= 360;
-  const x      = Math.min(511, Math.max(0, Math.floor((lng + 180) / 360 * 512)));
-  const latRad = Math.min(1.484, Math.max(-1.484, lat * Math.PI / 180));
-  const n      = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-  const y      = Math.min(511, Math.max(0, Math.floor((Math.PI - n) / (2 * Math.PI) * 512)));
-  return y * 512 + x + 1;
-}
-
 // ── Format ────────────────────────────────────────────────────────────────────
 const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString();
 
 function animCount(el, to) {
-  const s = Date.now(), d = 900, from = 0;
+  const s = Date.now(), d = 900;
   const tick = () => {
     const p = Math.min((Date.now()-s)/d,1), e = 1-Math.pow(1-p,3);
     el.textContent = fmt(Math.round(to*e));
@@ -321,84 +323,57 @@ const CanvasLayer = L.Layer.extend({
     this._onResize();
     map.on('resize', this._onResize, this);
     map.on('moveend zoomend', this._draw, this);
-    const n = this._rows?.length || 0;
-    if (n < 8000) {
-      map.on('move', this._draw, this);
-    } else {
-      map.on('movestart', () => { this._c.style.opacity = '0'; }, this);
-      map.on('moveend',   () => { this._c.style.opacity = '1'; }, this);
+    if ((this._rows?.length||0) < 8000) map.on('move', this._draw, this);
+    else {
+      map.on('movestart', () => { this._c.style.opacity='0'; }, this);
+      map.on('moveend',   () => { this._c.style.opacity='1'; }, this);
     }
     this._draw();
   },
-  onRemove(map) {
-    this._c.remove();
-    map.off('resize moveend zoomend move movestart', null, this);
-  },
+  onRemove(map) { this._c.remove(); map.off('resize moveend zoomend move movestart', null, this); },
   setRows(rows) { this._rows = rows; if (this._c) this._draw(); },
-  _onResize() {
-    const s = this._map.getSize();
-    this._c.width = s.x; this._c.height = s.y;
-    this._draw();
-  },
+  _onResize() { const s=this._map.getSize(); this._c.width=s.x; this._c.height=s.y; this._draw(); },
   _draw() {
     const rows = this._rows;
     if (!rows?.length) return;
-    const map = this._map, c = this._c, ctx = c.getContext('2d');
-    const W = c.width, H = c.height;
-    ctx.clearRect(0, 0, W, H);
+    const map=this._map, c=this._c, ctx=c.getContext('2d');
+    const W=c.width, H=c.height;
+    ctx.clearRect(0,0,W,H);
 
-    const b      = map.getBounds();
-    const sw     = b.getSouthWest(), ne = b.getNorthEast();
+    const b    = map.getBounds();
+    const sw   = b.getSouthWest(), ne = b.getNorthEast();
     const logMax = Math.log1p(rows[0].pixels) || 1;
-    const isUniform = rows[0].pixels === 0;        // synthetic "browse all" dataset
-    const zoom   = map.getZoom();
-    const ds     = zoom < 3 ? 2 : zoom < 5 ? 2 : zoom < 8 ? 3 : zoom < 11 ? 4 : 6;
-    const half   = ds >> 1;
+    const zoom = map.getZoom();
+    const ds   = zoom<3?2:zoom<5?2:zoom<8?3:zoom<11?4:6;
+    const half = ds>>1;
 
-    if (isUniform) {
-      // All regions visible in accent color
-      ctx.fillStyle = 'rgba(124,111,247,0.7)';
-      for (let i = 0; i < rows.length; i++) {
-        const ll = rows[i]._ll;
-        if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
-        let lng = ll[1];
-        if (ne.lng > 180) { if (lng < 0) lng += 360; }
-        else if (sw.lng < -180) { if (lng > 0) lng -= 360; }
-        if (lng < sw.lng || lng > ne.lng) continue;
+    const buckets = new Array(20).fill(null).map(()=>[]);
+    for (let i=0; i<rows.length; i++) {
+      const r=rows[i], ll=r._ll;
+      if (ll[0]<sw.lat||ll[0]>ne.lat) continue;
+      let lng=ll[1];
+      if (ne.lng>180) { if (lng<0) lng+=360; }
+      else if (sw.lng<-180) { if (lng>0) lng-=360; }
+      if (lng<sw.lng||lng>ne.lng) continue;
+      const t  = Math.log1p(r.pixels) / logMax;
+      const bi = Math.min((t*20)|0, 19);
+      buckets[bi].push(i);
+    }
+    for (let bi=0; bi<20; bi++) {
+      if (!buckets[bi].length) continue;
+      ctx.fillStyle = gradColor(bi/19);
+      for (const i of buckets[bi]) {
         const pt = map.latLngToContainerPoint(rows[i]._ll);
-        ctx.fillRect(pt.x - half | 0, pt.y - half | 0, ds, ds);
-      }
-    } else {
-      // Gradient bucketing
-      const buckets = new Array(20).fill(null).map(() => []);
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i], ll = r._ll;
-        if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
-        let lng = ll[1];
-        if (ne.lng > 180) { if (lng < 0) lng += 360; }
-        else if (sw.lng < -180) { if (lng > 0) lng -= 360; }
-        if (lng < sw.lng || lng > ne.lng) continue;
-        const t  = Math.log1p(r.pixels) / logMax;
-        const bi = Math.min((t * 20) | 0, 19);
-        buckets[bi].push(i);
-      }
-      for (let bi = 0; bi < 20; bi++) {
-        if (!buckets[bi].length) continue;
-        ctx.fillStyle = gradColor(bi / 19);
-        for (const i of buckets[bi]) {
-          const pt = map.latLngToContainerPoint(rows[i]._ll);
-          ctx.fillRect(pt.x - half | 0, pt.y - half | 0, ds, ds);
-        }
+        ctx.fillRect(pt.x-half|0, pt.y-half|0, ds, ds);
       }
     }
   }
 });
 
 // ── Virtual List ──────────────────────────────────────────────────────────────
-// Renders only the ~20 visible items at any scroll position.
-// Handles 262,144+ rows at native scroll speed with zero DOM bloat.
+// Renders only the ~30 visible DOM nodes regardless of total row count.
 class VirtualList {
-  constructor(container, itemH = 33) {
+  constructor(container, itemH=34) {
     this._el    = container;
     this._itemH = itemH;
     this._all   = [];
@@ -406,78 +381,73 @@ class VirtualList {
     this._maxPx = 1;
     this._key   = null;
 
-    // spacer: establishes total scroll height
-    // inner:  absolutely positioned slab that gets transform-shifted
     const spacer = document.createElement('div');
     spacer.style.cssText = 'position:relative;width:100%;';
-    const inner = document.createElement('div');
-    inner.style.cssText = 'position:absolute;top:0;left:0;right:0;';
+    const inner  = document.createElement('div');
+    inner.style.cssText  = 'position:absolute;top:0;left:0;right:0;';
     spacer.appendChild(inner);
     container.appendChild(spacer);
     this._spacer = spacer;
     this._inner  = inner;
 
-    container.addEventListener('scroll', () => this._paint(), { passive: true });
-    if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(() => { this._key = null; this._paint(); }).observe(container);
-    }
+    container.addEventListener('scroll', ()=>this._paint(), { passive:true });
+    if (typeof ResizeObserver!=='undefined')
+      new ResizeObserver(()=>{ this._key=null; this._paint(); }).observe(container);
   }
 
   load(rows, maxPx) {
     this._all   = rows;
-    this._maxPx = maxPx || 1;
+    this._maxPx = maxPx||1;
     this._el.scrollTop = 0;
-    this._key   = null;
+    this._key = null;
     this.filter('');
   }
 
   filter(q) {
     const s = q.trim().toLowerCase();
     this._rows = s
-      ? this._all.filter(r =>
-          r.name.toLowerCase().includes(s) ||
-          String(r.regionId).includes(s))
+      ? this._all.filter(r => r.name.toLowerCase().includes(s) || String(r.regionId).includes(s))
       : this._all;
     this._el.scrollTop = 0;
     this._key = null;
     this._paint();
-    // Update count label
-    const n = this._rows.length, tot = this._all.length;
-    const el = document.getElementById('srcount');
-    if (el) el.textContent = n < tot
+    const n=this._rows.length, tot=this._all.length;
+    const el=document.getElementById('srcount');
+    if (el) el.textContent = n<tot
       ? `${n.toLocaleString()} of ${tot.toLocaleString()} match`
       : `${n.toLocaleString()} regions`;
   }
 
   _paint() {
-    const { _el: el, _itemH: ih, _spacer, _inner, _rows: rows, _maxPx: mx } = this;
+    const {_el:el, _itemH:ih, _spacer, _inner, _rows:rows, _maxPx:mx} = this;
     const n = rows.length;
-    _spacer.style.height = `${n * ih}px`;
+    _spacer.style.height = `${n*ih}px`;
 
-    const viewH = el.clientHeight || 400;
+    const viewH = el.clientHeight||400;
     const top   = el.scrollTop;
-    const start = Math.max(0, Math.floor(top / ih) - 5);
-    const end   = Math.min(n, start + Math.ceil(viewH / ih) + 10);
+    const start = Math.max(0, Math.floor(top/ih)-10);
+    const end   = Math.min(n, start+Math.ceil(viewH/ih)+15);
 
     const key = `${start}:${end}:${n}`;
-    if (key === this._key) return;
+    if (key===this._key) return;
     this._key = key;
 
-    _inner.style.transform = `translateY(${start * ih}px)`;
+    _inner.style.transform = `translateY(${start*ih}px)`;
 
     const frag = document.createDocumentFragment();
-    for (let i = start; i < end; i++) {
+    for (let i=start; i<end; i++) {
       const r   = rows[i];
       const div = document.createElement('div');
       div.className = 'li';
-      const pct = mx > 0 ? (r.pixels / mx * 100).toFixed(1) : 0;
+      const pct = mx>0 ? (r.pixels/mx*100).toFixed(1) : 0;
       div.innerHTML =
-        `<span class="lrank">${r.rank}</span>` +
-        `<span class="lname">${r.name}</span>` +
-        `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>` +
-        `<span class="lval">${r.pixels > 0 ? fmt(r.pixels) : '—'}</span>`;
+        `<span class="lrank">${r.rank}</span>`+
+        `<span class="lname" title="${r.name}">${r.name}</span>`+
+        `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
+        `<span class="lval">${fmt(r.pixels)}</span>`+
+        `<button class="lgo" title="Go to region on map">↗</button>`;
       const cap = r;
-      div.addEventListener('click', () => flyTo(cap));
+      div.querySelector('.lgo').addEventListener('click', e => { e.stopPropagation(); flyTo(cap); });
       frag.appendChild(div);
     }
     _inner.replaceChildren(frag);
@@ -491,85 +461,99 @@ function getVlist() {
 }
 function onSearch(val) { getVlist().filter(val); }
 
-// ── Heatmap layer ─────────────────────────────────────────────────────────────
-let heatLib   = false;
-let heatLayer = null;
-let dotsLayer = null;
-let mode      = 'pts';
+// ── Heatmap ───────────────────────────────────────────────────────────────────
+let heatLib=false, heatLayer=null, dotsLayer=null, mode='pts';
 
 function ensureHeat(cb) {
   if (heatLib) { cb(); return; }
   const s = document.createElement('script');
   s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js';
-  s.onload = () => { heatLib = true; cb(); };
+  s.onload = ()=>{ heatLib=true; cb(); };
   document.head.appendChild(s);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const snaps = {};
 let active  = null;
-let rowById = new Map();  // regionId → row (O(1) click lookup)
 
-// ── File handling ─────────────────────────────────────────────────────────────
+// ── File upload ───────────────────────────────────────────────────────────────
 const drop = document.getElementById('drop');
 const fi   = document.getElementById('fi');
 
-drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('over'); });
-drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadFiles([...e.dataTransfer.files]); });
-fi.addEventListener('change', () => { loadFiles([...fi.files]); fi.value=''; });
+drop.addEventListener('dragover',  e=>{ e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
+drop.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('over'); loadFiles([...e.dataTransfer.files]); });
+fi.addEventListener('change', ()=>{ loadFiles([...fi.files]); fi.value=''; });
 
 function loadFiles(files) {
-  files.filter(f => f.name.endsWith('.csv')).forEach(f => {
-    Papa.parse(f, { header: true, skipEmptyLines: true, complete({ data }) {
-      const rows = data
-        .filter(r => r.regionId && +r.pixels > 0)
-        .map(r => {
-          const row = {
-            rank: +r.rank, regionId: +r.regionId,
-            name: r.name || `Region #${r.regionId}`,
-            pixels: +r.pixels, countryId: +r.countryId || 0, url: r.url || ''
-          };
-          row._ll = regionCoords(row.regionId);
-          return row;
-        });
-      snaps[f.name] = rows;
-      rebuildTabs();
-      setActive(f.name);
+  files.filter(f=>f.name.endsWith('.csv')).forEach(f=>{
+    Papa.parse(f, { header:true, skipEmptyLines:true, complete({data}) {
+      ingestCSV(f.name, data);
     }});
   });
 }
 
-// ── Browse all 262,144 regions ─────────────────────────────────────────────────
-const ALL_KEY = '[All 262K Regions]';
+// ── GitHub URL loading ────────────────────────────────────────────────────────
+function loadFromGithub() {
+  let url = document.getElementById('gh-input').value.trim();
+  if (!url) return;
 
-function browseAll() {
-  // Already generated — just switch to it
-  if (snaps[ALL_KEY]) { setActive(ALL_KEY); return; }
+  // Convert github.com blob URL → raw.githubusercontent.com
+  if (url.includes('github.com') && !url.includes('raw.githubusercontent.com')) {
+    url = url
+      .replace('https://github.com/', 'https://raw.githubusercontent.com/')
+      .replace('/blob/', '/');
+  }
 
-  const btn   = document.getElementById('browse-btn');
-  const label = document.getElementById('browse-label');
-  const spin  = document.getElementById('bspin');
+  const status = document.getElementById('gh-status');
+  const btn    = document.getElementById('gh-load');
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Fetching…';
+  btn.style.opacity  = '0.5';
   btn.style.pointerEvents = 'none';
-  label.textContent = 'Generating…';
-  spin.style.display = 'block';
 
-  // Yield two frames so the browser paints the spinner before the heavy loop
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const rows = [];
-    for (let id = 1; id <= 262144; id++) {
-      const row = { rank: id, regionId: id, name: `Region #${id}`, pixels: 0, countryId: 0, url: '' };
-      row._ll = regionCoords(id);
-      rows.push(row);
-    }
-    snaps[ALL_KEY] = rows;
-    rebuildTabs();
-    setActive(ALL_KEY);
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} — check the URL and make sure the file is public`);
+      return r.text();
+    })
+    .then(csvText => {
+      const parsed = Papa.parse(csvText, { header:true, skipEmptyLines:true });
+      if (!parsed.data.length) throw new Error('CSV appears empty');
+      const filename = url.split('/').pop() || 'github.csv';
+      ingestCSV(filename, parsed.data);
+      status.style.color = 'var(--cyan)';
+      status.textContent = `✓ Loaded ${filename}`;
+    })
+    .catch(err => {
+      status.style.color = '#f87171';
+      status.textContent = `✗ ${err.message}`;
+    })
+    .finally(() => {
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+    });
+}
 
-    label.textContent = 'Browse All 262,144 Regions';
-    spin.style.display = 'none';
-    btn.style.pointerEvents = '';
-  }));
+// ── Shared CSV ingestion ──────────────────────────────────────────────────────
+function ingestCSV(filename, data) {
+  const rows = data
+    .filter(r => r.regionId)          // keep every row that has a regionId
+    .map(r => {
+      const row = {
+        rank:      +r.rank      || 0,
+        regionId:  +r.regionId,
+        name:      r.name       || `Region #${r.regionId}`,
+        pixels:    +r.pixels    || 0,
+        countryId: +r.countryId || 0,
+        url:       r.url        || ''
+      };
+      row._ll = regionCoords(row.regionId);
+      return row;
+    });
+  snaps[filename] = rows;
+  rebuildTabs();
+  setActive(filename);
 }
 
 // ── Tab management ────────────────────────────────────────────────────────────
@@ -577,21 +561,15 @@ function rebuildTabs() {
   const keys = Object.keys(snaps);
   const bar  = document.getElementById('snaptabs');
   bar.style.display = keys.length > 1 ? 'flex' : 'none';
-  bar.innerHTML = keys.map(k => {
-    const isAll = k === ALL_KEY;
-    const label = isAll
-      ? '✦ All 262K'
-      : (k.replace(/\.csv$/i, '').replace(/region_leaderboard_?/i, '') || k).slice(0, 16);
-    return `<button class="stab${k===active?' on':''}" title="${k}" onclick="setActive(${JSON.stringify(k)})">${label}</button>`;
+  bar.innerHTML = keys.map(k=>{
+    const label = k.replace(/\.csv$/i,'').replace(/region_leaderboard_?/i,'') || k;
+    return `<button class="stab${k===active?' on':''}" title="${k}" onclick="setActive(${JSON.stringify(k)})">${label.slice(0,16)}</button>`;
   }).join('');
-  drop.classList.toggle('compact', keys.length > 0);
-  drop.querySelector('.dt').textContent = keys.length > 0 ? 'Add more files' : 'Drop CSV files here';
 }
 
 function setActive(key) {
   active = key;
-  document.querySelectorAll('.stab').forEach(t => t.classList.toggle('on', t.title === key));
-  document.getElementById('browse-btn').classList.toggle('active', key === ALL_KEY);
+  document.querySelectorAll('.stab').forEach(t=>t.classList.toggle('on', t.title===key));
   render(snaps[key]);
 }
 
@@ -599,44 +577,36 @@ function setActive(key) {
 function render(rows) {
   document.getElementById('empty').style.display = 'none';
 
-  const totalPx = rows.reduce((s, r) => s + r.pixels, 0);
-  const maxPx   = rows[0]?.pixels || 0;
+  const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
+  const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
   const numEl   = document.getElementById('big-num');
   numEl.classList.remove('idle');
-  if (totalPx > 0) {
-    animCount(numEl, totalPx);
-  } else {
-    numEl.textContent = '—';
-    numEl.classList.add('idle');
-  }
+  animCount(numEl, totalPx);
   document.getElementById('s-reg').textContent = rows.length.toLocaleString();
-  document.getElementById('s-max').textContent = maxPx > 0 ? fmt(maxPx) : '—';
+  document.getElementById('s-max').textContent = fmt(maxPx);
   document.getElementById('minfo').textContent = `${rows.length.toLocaleString()} regions`;
 
-  // Fast lookup index for click handler
-  rowById = new Map(rows.map(r => [r.regionId, r]));
-
-  // Canvas layer
-  if (dotsLayer) { map.removeLayer(dotsLayer); dotsLayer = null; }
-  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  // Canvas
+  if (dotsLayer) { map.removeLayer(dotsLayer); dotsLayer=null; }
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer=null; }
   dotsLayer = new CanvasLayer();
   dotsLayer.setRows(rows);
 
-  // Virtual list — clear search, reload
+  // Virtual list — ALL rows, no cap
   document.getElementById('searchinput').value = '';
   getVlist().load(rows, maxPx);
 
-  // Countries tab
+  // Countries
   const byCid = {};
-  rows.forEach(r => { if (r.countryId) byCid[r.countryId] = (byCid[r.countryId]||0) + r.pixels; });
-  const topC = Object.entries(byCid).sort((a, b) => b[1]-a[1]).slice(0, 200);
-  const maxC = topC[0]?.[1] || 1;
+  rows.forEach(r=>{ if (r.countryId) byCid[r.countryId]=(byCid[r.countryId]||0)+r.pixels; });
+  const topC = Object.entries(byCid).sort((a,b)=>b[1]-a[1]).slice(0,200);
+  const maxC = topC[0]?.[1]||1;
   document.getElementById('lc-panel').innerHTML = topC.length
-    ? topC.map(([cid,px],i) => {
-        const pct = (px/maxC*100).toFixed(1);
+    ? topC.map(([cid,px],i)=>{
+        const pct=(px/maxC*100).toFixed(1);
         return `<div class="li"><span class="lrank">${i+1}</span><span class="lname">Country ${cid}</span><div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div><span class="lval">${fmt(px)}</span></div>`;
       }).join('')
-    : `<div class="li"><span class="lname" style="color:var(--muted)">No country data in this snapshot</span></div>`;
+    : `<div class="li"><span class="lname" style="color:var(--muted)">No country data</span></div>`;
 
   setMode(mode);
 }
@@ -649,8 +619,8 @@ function flyTo(r) {
       <div class="pu-name">${r.name}</div>
       <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
       <div class="pu-row"><b>Rank</b> #${r.rank}</div>
-      <div class="pu-row"><b>Pixels</b> ${r.pixels > 0 ? r.pixels.toLocaleString() : '—'}</div>
-      ${r.url ? `<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>` : ''}
+      <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
+      ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
     </div>`).openOn(map);
 }
 
@@ -660,21 +630,21 @@ function setMode(m) {
   document.getElementById('b-pts').classList.toggle('on', m==='pts');
   document.getElementById('b-heat').classList.toggle('on', m==='heat');
 
-  if (m === 'pts') {
+  if (m==='pts') {
     if (heatLayer) map.removeLayer(heatLayer);
     if (dotsLayer) dotsLayer.addTo(map);
   } else {
     if (dotsLayer && map.hasLayer(dotsLayer)) map.removeLayer(dotsLayer);
     const rows = active ? snaps[active] : null;
     if (!rows) return;
-    const maxPx  = rows[0]?.pixels || 1;
-    const logMax = Math.log1p(maxPx) || 1;
-    const pts    = rows.map(r => [...r._ll, Math.log1p(r.pixels) / logMax || 0.3]);
-    ensureHeat(() => {
+    const maxPx  = rows[0]?.pixels||1;
+    const logMax = Math.log1p(maxPx);
+    const pts    = rows.map(r=>[...r._ll, Math.log1p(r.pixels)/logMax]);
+    ensureHeat(()=>{
       if (heatLayer) map.removeLayer(heatLayer);
       heatLayer = L.heatLayer(pts, {
-        radius: 20, blur: 28, maxZoom: 7, max: 1.0,
-        gradient: {0.0:'#1a0540',0.3:'#5b21b6',0.55:'#7c6ff7',0.75:'#22d3ee',0.9:'#f59e0b',1.0:'#ff2d6f'}
+        radius:20, blur:28, maxZoom:7, max:1.0,
+        gradient:{0.0:'#1a0540',0.3:'#5b21b6',0.55:'#7c6ff7',0.75:'#22d3ee',0.9:'#f59e0b',1.0:'#ff2d6f'}
       }).addTo(map);
     });
   }
@@ -682,65 +652,34 @@ function setMode(m) {
 
 // ── switchTab ─────────────────────────────────────────────────────────────────
 function switchTab(t) {
-  document.querySelectorAll('.lt').forEach((b, i) => b.classList.toggle('on', ['r','c'][i]===t));
-  document.getElementById('lr-panel').style.display    = t==='r' ? 'block' : 'none';
-  document.getElementById('lc-panel').style.display    = t==='c' ? 'block' : 'none';
-  document.getElementById('searchbox').style.display   = t==='r' ? ''      : 'none';
-  document.getElementById('srcount').style.display     = t==='r' ? ''      : 'none';
+  document.querySelectorAll('.lt').forEach((b,i)=>b.classList.toggle('on',['r','c'][i]===t));
+  document.getElementById('lr-panel').style.display = t==='r'?'block':'none';
+  document.getElementById('lc-panel').style.display = t==='c'?'block':'none';
+  document.getElementById('searchbox').style.display = t==='r'?'':'none';
+  document.getElementById('srcount').style.display   = t==='r'?'':'none';
 }
 
-// ── Map click → nearest region (O(1) grid lookup + neighbourhood fallback) ────
+// ── Map click → nearest region ────────────────────────────────────────────────
 map.on('click', e => {
-  if (mode !== 'pts' || !active) return;
+  if (mode!=='pts' || !active) return;
   const rows = snaps[active];
   if (!rows?.length) return;
-
   const cp = e.containerPoint;
-  const { lat, lng } = e.latlng;
-
-  // Step 1 — direct grid cell lookup
-  const targetId = latlngToRegionId(lat, lng);
-  const direct   = rowById.get(targetId);
-  let best = null, bestD = Infinity;
-
-  if (direct) {
-    const pt = map.latLngToContainerPoint(direct._ll);
-    bestD = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
-    best  = direct;
-    if (bestD < 900) { flyTo(direct); return; }  // ~30 px — accept direct hit
-  }
-
-  // Step 2 — check 5×5 neighbourhood (handles sparse CSVs or projection rounding)
-  const cx = (targetId-1) % 512, cy = (targetId-1) / 512 | 0;
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      if (!dx && !dy) continue;
-      const nx = cx+dx, ny = cy+dy;
-      if (nx < 0 || nx > 511 || ny < 0 || ny > 511) continue;
-      const r = rowById.get(ny*512+nx+1);
-      if (!r) continue;
-      const pt = map.latLngToContainerPoint(r._ll);
-      const d  = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
-      if (d < bestD) { bestD = d; best = r; }
-    }
-  }
-  if (best && bestD < 400) { flyTo(best); return; }
-
-  // Step 3 — visible-bounds scan (last resort for very sparse data)
   const b  = map.getBounds();
   const sw = b.getSouthWest(), ne = b.getNorthEast();
+  let best=null, bestD=Infinity;
   for (const r of rows) {
-    const ll = r._ll;
-    if (ll[0] < sw.lat || ll[0] > ne.lat) continue;
-    let lngr = ll[1];
-    if (ne.lng > 180) { if (lngr < 0) lngr += 360; }
-    else if (sw.lng < -180) { if (lngr > 0) lngr -= 360; }
-    if (lngr < sw.lng || lngr > ne.lng) continue;
-    const pt = map.latLngToContainerPoint(r._ll);
-    const d  = (pt.x-cp.x)**2 + (pt.y-cp.y)**2;
-    if (d < bestD) { bestD = d; best = r; }
+    const ll=r._ll;
+    if (ll[0]<sw.lat||ll[0]>ne.lat) continue;
+    let lng=ll[1];
+    if (ne.lng>180) { if (lng<0) lng+=360; }
+    else if (sw.lng<-180) { if (lng>0) lng-=360; }
+    if (lng<sw.lng||lng>ne.lng) continue;
+    const pt=map.latLngToContainerPoint(r._ll);
+    const d=(pt.x-cp.x)**2+(pt.y-cp.y)**2;
+    if (d<bestD) { bestD=d; best=r; }
   }
-  if (best && bestD < 400) flyTo(best);
+  if (best && bestD<400) flyTo(best);
 });
 </script>
 </body>
