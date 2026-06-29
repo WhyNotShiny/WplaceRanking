@@ -152,16 +152,26 @@ aside.folded #resize-handle { display: none; }
 /* List items */
 .li {
   display: flex; align-items: center; gap: 5px;
-  padding: 0 10px 0 12px; height: 34px; flex-shrink: 0;
-  border-bottom: 1px solid #0a0d13; transition: background .1s;
+  padding: 0 10px 0 10px; height: 36px; flex-shrink: 0;
+  border-bottom: 1px solid #0a0d13; transition: background .1s, border-left-color .1s;
+  cursor: pointer; border-left: 2px solid transparent;
 }
 .li:hover { background: var(--raised); }
-.lrank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 18px; text-align: right; flex-shrink: 0; }
-.lid   { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 44px; text-align: right; flex-shrink: 0; }
+.li.selected { background: color-mix(in srgb, var(--accent) 8%, transparent); border-left-color: var(--accent); }
+.li.selected .lname { color: var(--text); }
+.li.rank-gold   { border-left-color: #fbbf24; }
+.li.rank-silver { border-left-color: #94a3b8; }
+.li.rank-bronze { border-left-color: #92400e; }
+.li.rank-gold   .lrank { color: #fbbf24; }
+.li.rank-silver .lrank { color: #94a3b8; }
+.li.rank-bronze .lrank { color: #b45309; }
+/* Column widths — sized for up to 6-digit ranks / IDs */
+.lrank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 36px; text-align: right; flex-shrink: 0; }
+.lid   { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 54px; text-align: right; flex-shrink: 0; }
 .lname { font-size: 11px; color: #9aa3b5; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lbar-w { width: 28px; flex-shrink: 0; }
-.lbar { height: 2px; background: var(--accent); border-radius: 1px; opacity: 0.55; }
-.lval { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 42px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.lbar-w { width: 26px; flex-shrink: 0; }
+.lbar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.6; }
+.lval { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 .lgo {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--border); background: transparent;
