@@ -24,27 +24,58 @@
   --dim:     #2d3748;
   --font:    'Space Grotesk', system-ui, sans-serif;
   --mono:    'JetBrains Mono', monospace;
-  --sw:      324px;
+  --sw:      380px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
 #app { display: flex; height: 100vh; }
- 
+
 /* ── Sidebar ───────────────────────────────────────────── */
 aside {
   width: var(--sw); min-width: var(--sw);
   background: var(--surface); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden; z-index: 500;
+  position: relative;
+  transition: width .25s cubic-bezier(0.4,0,0.2,1), min-width .25s cubic-bezier(0.4,0,0.2,1);
 }
- 
+aside.folded { width: 0 !important; min-width: 0 !important; }
+
 /* Header */
-#s-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-#s-head h1 { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; }
+#s-head { padding: 12px 12px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.s-head-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+#s-head h1 { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; min-width: 0; }
 #s-head h1 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
+#fold-btn {
+  width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid var(--border); background: none;
+  color: var(--dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#fold-btn:hover { color: var(--text); background: var(--raised); border-color: var(--muted); }
+#fold-btn svg { transition: transform .25s cubic-bezier(0.4,0,0.2,1); }
+aside.folded #fold-btn svg { transform: rotate(180deg); }
+/* Sidebar reopen tab */
+#sidebar-reopen {
+  display: none; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  z-index: 600; width: 18px; height: 56px;
+  background: var(--surface); border: 1px solid var(--border); border-left: none;
+  border-radius: 0 7px 7px 0; cursor: pointer; color: var(--dim);
+  align-items: center; justify-content: center; transition: color .15s, background .15s;
+}
+#sidebar-reopen:hover { color: var(--text); background: var(--raised); }
+/* Resize handle */
+#resize-handle {
+  position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
+  cursor: col-resize; z-index: 510; background: transparent; transition: background .15s;
+}
+#resize-handle:hover { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+#resize-handle.active { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+aside.folded #resize-handle { display: none; }
 #big-num { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-top: 6px; line-height: 1; color: var(--text); }
 #big-num.idle { color: var(--dim); }
 #big-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.9px; margin-top: 3px; }
- 
+
 /* Load bar */
 #load-bar {
   margin: 8px 12px; padding: 7px 11px; border-radius: 7px;
@@ -54,7 +85,7 @@ aside {
 #load-bar.done { display: none; }
 #load-bar .spin { width: 12px; height: 12px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
 #load-msg { font-size: 11px; color: var(--muted); }
- 
+
 /* Tab bar */
 #tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .tab-btn {
@@ -67,14 +98,14 @@ aside {
 .tab-btn:hover { color: var(--text); background: color-mix(in srgb, white 2%, transparent); }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab-btn svg { flex-shrink: 0; }
- 
+
 /* Tab panels — list uses flex-column for virtual scroll; stats scrolls itself */
 .tab-panel { display: none; }
 #panel-list.active  { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 #panel-stats.active { display: block; flex: 1; overflow-y: auto; }
 #panel-stats::-webkit-scrollbar { width: 3px; }
 #panel-stats::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
- 
+
 /* ── Sort bar ────────────────────────────────────────────── */
 #sort-bar {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
@@ -90,7 +121,7 @@ aside {
 .sort-chip:hover { border-color: var(--muted); color: var(--text); }
 .sort-chip.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .sort-chip .arr { font-size: 8px; }
- 
+
 /* Column labels */
 #col-heads {
   display: flex; align-items: center; gap: 5px;
@@ -99,7 +130,7 @@ aside {
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .col-h { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
- 
+
 /* Search */
 #searchbox { padding: 8px 12px 4px; flex-shrink: 0; position: relative; }
 #search-icon { position: absolute; left: 21px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
@@ -111,13 +142,13 @@ aside {
 #searchinput:focus { border-color: var(--accent); }
 #searchinput::placeholder { color: var(--muted); }
 #srcount { font-size: 10px; color: var(--dim); padding: 2px 12px 4px; flex-shrink: 0; min-height: 16px; }
- 
+
 /* Virtual scroll area */
 #lscroll { flex: 1; position: relative; overflow: hidden; }
 #lr-panel { position: absolute; inset: 0; overflow-y: auto; }
 #lr-panel::-webkit-scrollbar { width: 3px; }
 #lr-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
- 
+
 /* List items */
 .li {
   display: flex; align-items: center; gap: 5px;
@@ -138,7 +169,7 @@ aside {
   display: flex; align-items: center; justify-content: center; transition: all .1s;
 }
 .lgo:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
- 
+
 /* ── Stats tab ───────────────────────────────────────────── */
 .sect { padding: 12px 12px 0; }
 .sect-title {
@@ -146,7 +177,7 @@ aside {
   margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
 }
 .sect-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
- 
+
 .scard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 12px 10px; }
 .scard { background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .scard.wide { grid-column: 1 / -1; }
@@ -156,7 +187,7 @@ aside {
 .scard .sv.green  { color: var(--green); }
 .scard .sv.orange { color: var(--orange); }
 .scard .sd { font-size: 10px; color: var(--dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
- 
+
 /* Distribution bar */
 .dist-wrap { padding: 0 12px 10px; }
 .dist-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--dim); font-family: var(--mono); margin-bottom: 5px; }
@@ -169,33 +200,11 @@ aside {
   padding: 4px 7px; font-size: 9px; font-family: var(--mono); color: var(--text);
   white-space: nowrap; z-index: 20; pointer-events: none;
 }
- 
-/* Top 10 list */
-.top-list { padding: 0 12px 16px; }
-.top-item {
-  display: flex; align-items: center; gap: 7px; padding: 7px 0;
-  border-bottom: 1px solid #0d1117;
-}
-.top-item:last-child { border-bottom: none; }
-.top-badge { font-family: var(--mono); font-size: 11px; width: 22px; text-align: center; flex-shrink: 0; }
-.top-badge.gold   { color: #fbbf24; }
-.top-badge.silver { color: #94a3b8; }
-.top-badge.bronze { color: #b45309; }
-.top-badge.plain  { font-size: 10px; color: var(--dim); }
-.top-name { font-size: 11px; color: #9aa3b5; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.top-val { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
-.top-go {
-  flex-shrink: 0; width: 18px; height: 18px; border-radius: 4px;
-  border: 1px solid var(--border); background: transparent;
-  color: var(--dim); cursor: pointer; font-size: 9px;
-  display: flex; align-items: center; justify-content: center; transition: all .1s;
-}
-.top-go:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
- 
+
 /* ── Map ─────────────────────────────────────────────────── */
 #mwrap { flex: 1; position: relative; background: var(--bg); }
 #map { width: 100%; height: 100%; background: var(--bg); }
- 
+
 #minfo-pill {
   position: absolute; top: 14px; right: 14px; z-index: 400;
   font-family: var(--mono); font-size: 11px; color: var(--muted);
@@ -203,7 +212,7 @@ aside {
   backdrop-filter: blur(8px); border: 1px solid var(--border);
   border-radius: 7px; padding: 5px 11px;
 }
- 
+
 /* Gradient legend */
 #mlegend {
   position: absolute; bottom: 30px; right: 14px; z-index: 400;
@@ -221,7 +230,7 @@ aside {
   display: flex; justify-content: space-between;
   font-size: 9px; color: var(--muted); font-family: var(--mono); margin-top: 3px;
 }
- 
+
 /* Map loading overlay */
 #mload {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -232,9 +241,9 @@ aside {
 #mload.done { display: none; }
 #mload .spin { width: 18px; height: 18px; border: 2px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
 #mload span { font-size: 13px; color: var(--muted); }
- 
+
 @keyframes spin { to { transform: rotate(360deg); } }
- 
+
 /* Popup */
 .leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; box-shadow: 0 12px 40px rgba(0,0,0,.7) !important; padding: 0 !important; }
 .leaflet-popup-tip-container { display: none; }
@@ -245,29 +254,34 @@ aside {
 .pu-row b { color: #94a3b8; font-weight: 500; }
 .pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; text-decoration: none; }
 .pu-link:hover { opacity: .85; }
- 
+
 .leaflet-control-zoom a { background: var(--surface) !important; border-color: var(--border) !important; color: var(--muted) !important; }
 .leaflet-control-zoom a:hover { background: var(--raised) !important; color: var(--text) !important; }
- 
+
 .filled-overlay { image-rendering: pixelated; }
 </style>
 </head>
 <body>
 <div id="app">
- 
+
 <aside>
   <!-- ── Header ── -->
   <div id="s-head">
-    <h1><span class="dot"></span>Wplace Leaderboard</h1>
+    <div class="s-head-top">
+      <h1><span class="dot"></span>Wplace Leaderboard</h1>
+      <button id="fold-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    </div>
     <div id="big-num" class="idle">—</div>
     <div id="big-label">total pixels painted</div>
   </div>
- 
+
   <div id="load-bar">
     <div class="spin"></div>
     <span id="load-msg">Fetching leaderboard…</span>
   </div>
- 
+
   <!-- ── Tabs ── -->
   <div id="tab-bar">
     <button class="tab-btn active" data-tab="list" onclick="switchTab('list')">
@@ -285,17 +299,16 @@ aside {
       Stats
     </button>
   </div>
- 
+
   <!-- ── Leaderboard panel ── -->
   <div id="panel-list" class="tab-panel active">
- 
+
     <div id="sort-bar">
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-key="rank" onclick="setSort('rank')">Rank <span class="arr">▼</span></button>
       <button class="sort-chip" data-key="id" onclick="setSort('id')">Region ID <span class="arr"></span></button>
-      <button class="sort-chip" data-key="pixels" onclick="setSort('pixels')">Pixels <span class="arr"></span></button>
     </div>
- 
+
     <div id="col-heads">
       <span class="col-h" style="width:18px;text-align:right">Rk</span>
       <span class="col-h" style="width:44px;text-align:right">ID</span>
@@ -304,7 +317,7 @@ aside {
       <span class="col-h" style="width:42px;text-align:right">Pixels</span>
       <span style="width:20px"></span>
     </div>
- 
+
     <div id="searchbox">
       <svg id="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -312,15 +325,15 @@ aside {
       <input id="searchinput" type="text" placeholder="Search name or region ID…" oninput="onSearch(this.value)">
     </div>
     <div id="srcount"></div>
- 
+
     <div id="lscroll">
       <div id="lr-panel"></div>
     </div>
   </div>
- 
+
   <!-- ── Stats panel ── -->
   <div id="panel-stats" class="tab-panel">
- 
+
     <div class="sect"><div class="sect-title">Overview</div></div>
     <div class="scard-grid">
       <div class="scard">
@@ -348,20 +361,51 @@ aside {
         <div class="sd" id="st-above-sd">—</div>
       </div>
     </div>
- 
+
     <div class="sect"><div class="sect-title">Pixel Distribution</div></div>
     <div class="dist-wrap">
       <div class="dist-labels"><span>0th pct</span><span>100th pct</span></div>
       <div class="dist-bar" id="dist-bar"></div>
     </div>
- 
-    <div class="sect"><div class="sect-title">Top 10 Regions</div></div>
-    <div class="top-list" id="top10-list"></div>
- 
+
+    <div class="sect"><div class="sect-title">Distribution Insights</div></div>
+    <div class="scard-grid">
+      <div class="scard wide">
+        <div class="sl">Trimmed Mean · excl. bottom &amp; top 10%</div>
+        <div class="sv green" id="st-trim">—</div>
+        <div class="sd" id="st-trim-sd">—</div>
+      </div>
+      <div class="scard">
+        <div class="sl">Std Deviation</div>
+        <div class="sv" id="st-std">—</div>
+        <div class="sd">pixel spread</div>
+      </div>
+      <div class="scard">
+        <div class="sl">Coeff. of Variation</div>
+        <div class="sv orange" id="st-cv">—</div>
+        <div class="sd">std ÷ mean</div>
+      </div>
+      <div class="scard">
+        <div class="sl">P10 · 10th Percentile</div>
+        <div class="sv" style="color:var(--muted)" id="st-p10">—</div>
+        <div class="sd">bottom decile floor</div>
+      </div>
+      <div class="scard">
+        <div class="sl">P90 · 90th Percentile</div>
+        <div class="sv accent" id="st-p90">—</div>
+        <div class="sd">top decile floor</div>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+
   </div>
+  <div id="resize-handle"></div>
 </aside>
- 
+
 <div id="mwrap">
+  <button id="sidebar-reopen" onclick="toggleSidebar()" title="Open sidebar">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
   <div id="map"></div>
   <div id="minfo-pill">— regions</div>
   <div id="mlegend">
@@ -370,27 +414,27 @@ aside {
   </div>
   <div id="mload"><div class="spin"></div><span id="mload-msg">Loading…</span></div>
 </div>
- 
+
 </div>
 <script>
 const CSV_URL = 'https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/region_leaderboard.csv';
- 
+
 // ── Map setup ─────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false, center: [25, 10], zoom: 2 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
- 
+
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
   subdomains: 'abcd', maxZoom: 19, noWrap: true
 }).addTo(map);
- 
+
 map.createPane('labelsPane');
 map.getPane('labelsPane').style.zIndex = '450';
 map.getPane('labelsPane').style.pointerEvents = 'none';
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
   subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane', noWrap: true
 }).addTo(map);
- 
+
 // ── Gradient ──────────────────────────────────────────────
 const STOPS = [
   [0.00, [26,  5, 64]],
@@ -410,7 +454,7 @@ function gradRGB(t) {
   }
   return [255,45,111];
 }
- 
+
 // ── Region coordinates ────────────────────────────────────
 function regionCoords(rid) {
   const x = (rid-1) % 512, y = (rid-1)/512|0;
@@ -419,10 +463,10 @@ function regionCoords(rid) {
   const lat = (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   return [lat, lng];
 }
- 
+
 // ── Format ────────────────────────────────────────────────
 const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));
- 
+
 function animCount(el, to) {
   const s = Date.now(), d = 800;
   const tick = () => {
@@ -432,19 +476,19 @@ function animCount(el, to) {
   };
   requestAnimationFrame(tick);
 }
- 
+
 // ── Image overlay ─────────────────────────────────────────
 const WORLD_LAT  =  85.0511287798066;
 const WORLD_LAT2 = -85.0511287798066;
 const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
 const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
 let filledOverlays = [];
- 
+
 function setFilledOverlay(dataUrl) {
   filledOverlays.forEach(o => map.removeLayer(o));
   filledOverlays = [L.imageOverlay(dataUrl, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map)];
 }
- 
+
 function buildOffscreen(rows, maxPx) {
   const os  = document.createElement('canvas');
   os.width = os.height = 512;
@@ -464,20 +508,20 @@ function buildOffscreen(rows, maxPx) {
   ctx.putImageData(img, 0, 0);
   return os;
 }
- 
+
 // ── Tab switching ─────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('panel-list').classList.toggle('active', tab==='list');
   document.getElementById('panel-stats').classList.toggle('active', tab==='stats');
 }
- 
+
 // ── Sort ──────────────────────────────────────────────────
 let sortKey = 'rank', sortDir = 'asc';
- 
+
 // Default direction when a column is first clicked
-const SORT_DEFAULTS = { rank: 'asc', id: 'asc', pixels: 'desc' };
- 
+const SORT_DEFAULTS = { rank: 'asc', id: 'asc' };
+
 function setSort(key) {
   sortDir = (sortKey === key) ? (sortDir==='asc' ? 'desc' : 'asc') : SORT_DEFAULTS[key];
   sortKey = key;
@@ -488,7 +532,7 @@ function setSort(key) {
     if (q) getVlist().filter(q);
   }
 }
- 
+
 function updateSortUI() {
   document.querySelectorAll('.sort-chip').forEach(chip => {
     const isActive = chip.dataset.key === sortKey;
@@ -496,7 +540,7 @@ function updateSortUI() {
     chip.querySelector('.arr').textContent = isActive ? (sortDir==='asc' ? '▲' : '▼') : '';
   });
 }
- 
+
 function applySort(rows) {
   return [...rows].sort((a, b) => {
     const av = sortKey==='rank' ? a.rank : sortKey==='id' ? a.regionId : a.pixels;
@@ -504,7 +548,7 @@ function applySort(rows) {
     return sortDir==='asc' ? av-bv : bv-av;
   });
 }
- 
+
 // ── Virtual list ──────────────────────────────────────────
 class VirtualList {
   constructor(container, itemH=34) {
@@ -520,13 +564,13 @@ class VirtualList {
     if (typeof ResizeObserver!=='undefined')
       new ResizeObserver(()=>{this._key=null;this._paint();}).observe(container);
   }
- 
+
   load(rows, maxPx) {
     this._all=rows; this._mx=maxPx||1;
     this._el.scrollTop=0; this._key=null;
     this.filter('');
   }
- 
+
   filter(q) {
     const s=q.trim().toLowerCase();
     this._rows=s ? this._all.filter(r=>r.name.toLowerCase().includes(s)||String(r.regionId).includes(s)) : this._all;
@@ -536,7 +580,7 @@ class VirtualList {
     const el=document.getElementById('srcount');
     if (el) el.textContent = n<tot ? `${n.toLocaleString()} of ${tot.toLocaleString()} match` : `${n.toLocaleString()} regions`;
   }
- 
+
   _paint() {
     const {_el:el,_ih:ih,_sp:sp,_in:inn,_rows:rows,_mx:mx}=this;
     const n=rows.length;
@@ -568,17 +612,17 @@ class VirtualList {
     inn.replaceChildren(frag);
   }
 }
- 
+
 let vlist=null;
 function getVlist() {
   if (!vlist) vlist=new VirtualList(document.getElementById('lr-panel'));
   return vlist;
 }
 function onSearch(val) { getVlist().filter(val); }
- 
+
 // ── State ─────────────────────────────────────────────────
 let rowsData=[], maxPxGlobal=1;
- 
+
 // ── Auto-load ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mload').classList.remove('done');
@@ -600,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
     });
 });
- 
+
 // ── Ingest ────────────────────────────────────────────────
 function ingestCSV(data) {
   const rows = data
@@ -618,38 +662,38 @@ function ingestCSV(data) {
   document.getElementById('load-bar').classList.add('done');
   document.getElementById('mload').classList.add('done');
 }
- 
+
 // ── Render ────────────────────────────────────────────────
 function render(rows) {
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
   maxPxGlobal = maxPx;
- 
+
   const numEl = document.getElementById('big-num');
   numEl.classList.remove('idle');
   animCount(numEl, totalPx);
   document.getElementById('minfo-pill').textContent = `${rows.length.toLocaleString()} regions`;
- 
+
   renderStats(rows, totalPx, maxPx);
   setFilledOverlay(buildOffscreen(rows, maxPx).toDataURL());
- 
+
   document.getElementById('searchinput').value = '';
   getVlist().load(applySort(rows), maxPx);
 }
- 
+
 // ── Stats tab ─────────────────────────────────────────────
 function renderStats(rows, totalPx, maxPx) {
   const n = rows.length;
   if (!n) return;
   const avgPx = totalPx / n;
- 
+
   // Median — sort pixel values, pick middle
   const pxArr = [...rows].map(r=>r.pixels).sort((a,b)=>a-b);
   const medPx = n%2===1 ? pxArr[n>>1] : (pxArr[(n>>1)-1]+pxArr[n>>1])/2;
- 
+
   const topRow  = rows.reduce((m,r)=>r.pixels>m.pixels?r:m, rows[0]);
   const aboveAvg = rows.filter(r=>r.pixels>avgPx).length;
- 
+
   document.getElementById('st-regions').textContent  = n.toLocaleString();
   document.getElementById('st-max').textContent      = fmt(maxPx);
   document.getElementById('st-max-name').textContent = topRow.name;
@@ -657,11 +701,11 @@ function renderStats(rows, totalPx, maxPx) {
   document.getElementById('st-med').textContent      = fmt(Math.round(medPx));
   document.getElementById('st-above').textContent    = aboveAvg.toLocaleString();
   document.getElementById('st-above-sd').textContent = `${((aboveAvg/n)*100).toFixed(1)}% of all regions`;
- 
+
   renderDistBar(pxArr, maxPx);
-  renderTop10(rows);
+  renderDistInsights(pxArr, n);
 }
- 
+
 function renderDistBar(sortedPx, maxPx) {
   const n = sortedPx.length;
   const bar = document.getElementById('dist-bar');
@@ -681,27 +725,31 @@ function renderDistBar(sortedPx, maxPx) {
     bar.appendChild(seg);
   }
 }
- 
-function renderTop10(rows) {
-  const top10 = [...rows].sort((a,b)=>b.pixels-a.pixels).slice(0,10);
-  const list = document.getElementById('top10-list');
-  list.innerHTML = '';
-  const medals = ['🥇','🥈','🥉'];
-  top10.forEach((r, i) => {
-    const div = document.createElement('div');
-    div.className = 'top-item';
-    const badgeCls = i===0?'gold':i===1?'silver':i===2?'bronze':'plain';
-    const badge = i<3 ? medals[i] : String(i+1);
-    div.innerHTML =
-      `<span class="top-badge ${badgeCls}">${badge}</span>`+
-      `<span class="top-name" title="${r.name}">${r.name}</span>`+
-      `<span class="top-val">${fmt(r.pixels)}</span>`+
-      `<button class="top-go" title="Fly to region">↗</button>`;
-    div.querySelector('.top-go').addEventListener('click', e=>{e.stopPropagation();flyTo(r);});
-    list.appendChild(div);
-  });
+
+function renderDistInsights(pxArr, n) {
+  if (!n) return;
+  // Trimmed mean — exclude bottom & top 10%
+  const trimLo = Math.floor(n * 0.1), trimHi = Math.ceil(n * 0.9);
+  const trimmed = pxArr.slice(trimLo, trimHi);
+  const trimMean = trimmed.reduce((s,v)=>s+v,0) / (trimmed.length||1);
+  // Standard deviation
+  const mean = pxArr.reduce((s,v)=>s+v,0) / n;
+  const variance = pxArr.reduce((s,v)=>s+(v-mean)**2,0) / n;
+  const std = Math.sqrt(variance);
+  // Coefficient of variation
+  const cv = mean > 0 ? (std / mean * 100) : 0;
+  // Percentiles (pxArr is already sorted ascending)
+  const p10 = pxArr[Math.floor(n * 0.10)] || 0;
+  const p90 = pxArr[Math.min(Math.floor(n * 0.90), n-1)] || 0;
+
+  document.getElementById('st-trim').textContent    = fmt(Math.round(trimMean));
+  document.getElementById('st-trim-sd').textContent = `middle ${trimmed.length.toLocaleString()} of ${n.toLocaleString()} regions`;
+  document.getElementById('st-std').textContent     = fmt(Math.round(std));
+  document.getElementById('st-cv').textContent      = cv.toFixed(1) + '%';
+  document.getElementById('st-p10').textContent     = fmt(p10);
+  document.getElementById('st-p90').textContent     = fmt(p90);
 }
- 
+
 // ── flyTo ─────────────────────────────────────────────────
 function flyTo(r) {
   map.flyTo(r._ll, 10, {duration:1.1});
@@ -714,13 +762,22 @@ function flyTo(r) {
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
     </div>`).openOn(map);
 }
- 
-// ── Map click — find nearest region ───────────────────────
+
+// ── Map click — find nearest region (adaptive hit-radius) ─
 map.on('click', e => {
   if (!rowsData.length) return;
   const cp = e.containerPoint;
   const b  = map.getBounds();
   const sw = b.getSouthWest(), ne = b.getNorthEast();
+
+  // Compute half-cell width in container pixels so corners still register when zoomed in
+  const testLL  = map.containerPointToLatLng(cp);
+  const cellDeg = 360 / 512;
+  const ptA = map.latLngToContainerPoint([testLL.lat, testLL.lng]);
+  const ptB = map.latLngToContainerPoint([testLL.lat, testLL.lng + cellDeg]);
+  const halfCell = Math.abs(ptB.x - ptA.x) * 0.65;
+  const hitThreshSq = Math.pow(Math.max(28, halfCell), 2);
+
   let best=null, bestD=Infinity;
   for (const r of rowsData) {
     const ll=r._ll;
@@ -733,8 +790,70 @@ map.on('click', e => {
     const d=(pt.x-cp.x)**2+(pt.y-cp.y)**2;
     if (d<bestD){bestD=d;best=r;}
   }
-  if (best&&bestD<600) flyTo(best);
+  if (best&&bestD<hitThreshSq) flyTo(best);
 });
+// ── Sidebar toggle ────────────────────────────────────────
+function toggleSidebar() {
+  const asideEl = document.querySelector('aside');
+  const reopen  = document.getElementById('sidebar-reopen');
+  const folded  = asideEl.classList.toggle('folded');
+  reopen.style.display = folded ? 'flex' : 'none';
+  // Repaint list and invalidate map after transition
+  setTimeout(() => {
+    if (vlist) { vlist._key = null; vlist._paint(); }
+    map.invalidateSize();
+  }, 270);
+}
+
+// ── Sidebar resize handle ─────────────────────────────────
+(function() {
+  const handle  = document.getElementById('resize-handle');
+  const asideEl = document.querySelector('aside');
+  let dragging = false, startX = 0, startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    if (asideEl.classList.contains('folded')) return;
+    dragging = true; startX = e.clientX; startW = asideEl.offsetWidth;
+    handle.classList.add('active');
+    asideEl.style.transition = 'none'; // disable during drag
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const newW = Math.min(620, Math.max(260, startW + e.clientX - startX));
+    asideEl.style.width    = newW + 'px';
+    asideEl.style.minWidth = newW + 'px';
+    document.documentElement.style.setProperty('--sw', newW + 'px');
+    if (vlist) { vlist._key = null; vlist._paint(); }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('active');
+    asideEl.style.transition = ''; // restore
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    map.invalidateSize();
+  });
+})();
+
+// ── Keyboard shortcuts ────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const search = document.getElementById('searchinput');
+  if (e.key === '/' && document.activeElement !== search) {
+    e.preventDefault();
+    switchTab('list');
+    search.focus();
+  } else if (e.key === 'Escape') {
+    search.blur();
+    map.closePopup();
+  }
+});
+
 </script>
 </body>
 </html>
