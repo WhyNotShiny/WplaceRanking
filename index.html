@@ -22,7 +22,7 @@
   --dim:     #2d3748;
   --font:    'Space Grotesk', system-ui, sans-serif;
   --mono:    'JetBrains Mono', monospace;
-  --sw:      300px;
+  --sw:      304px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
@@ -35,207 +35,135 @@ aside {
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden; z-index: 500;
 }
-#s-head { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-#s-head h1 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-#s-head h1 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
-#big-num { font-family: var(--mono); font-size: 30px; font-weight: 600; letter-spacing: -1px; margin-top: 10px; line-height: 1; color: var(--text); }
+
+#s-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#s-head h1 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; }
+#s-head h1 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
+#big-num { font-family: var(--mono); font-size: 28px; font-weight: 600; letter-spacing: -1px; margin-top: 8px; line-height: 1; color: var(--text); }
 #big-num.idle { color: var(--dim); }
-#big-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+#big-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.9px; margin-top: 3px; }
 
-/* ── Load sources ─────────────────────────────────────────── */
-#sources { padding: 12px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
-
-/* Drop zone */
-#drop {
-  border: 1.5px dashed var(--dim); border-radius: 8px;
-  padding: 11px 12px; text-align: center; cursor: pointer;
-  transition: border-color .2s, background .2s;
-  display: flex; align-items: center; gap: 10px;
+/* Load state */
+#load-bar {
+  margin: 10px 12px 0; padding: 8px 11px; border-radius: 7px;
+  background: var(--raised); border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 9px; flex-shrink: 0;
 }
-#drop:hover, #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
-#drop .di { font-size: 16px; flex-shrink: 0; }
-#drop .dt { font-size: 12px; font-weight: 500; }
-#drop .ds { font-size: 10px; color: var(--muted); margin-top: 1px; }
-#fi { display: none; }
-
-/* GitHub row */
-#gh-row { display: flex; gap: 6px; align-items: center; }
-#gh-icon { font-size: 15px; flex-shrink: 0; }
-#gh-input {
-  flex: 1; background: var(--raised); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 9px;
-  font-family: var(--font); font-size: 11px; color: var(--text);
-  outline: none; transition: border-color .15s; min-width: 0;
-}
-#gh-input:focus { border-color: var(--accent); }
-#gh-input::placeholder { color: var(--muted); }
-#gh-load {
-  flex-shrink: 0; background: var(--raised); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 10px;
-  font-family: var(--font); font-size: 11px; font-weight: 600;
-  color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap;
-}
-#gh-load:hover { border-color: var(--accent); color: var(--accent); }
-#gh-status { font-size: 10px; color: var(--muted); padding: 0 2px; min-height: 14px; }
-
-/* Snap tabs */
-#snaptabs { display: none; padding: 8px 12px 0; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
-.stab {
-  font-size: 11px; font-family: var(--mono); padding: 3px 9px;
-  border-radius: 20px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); cursor: pointer;
-  transition: all .15s; white-space: nowrap; max-width: 130px;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.stab:hover { border-color: var(--accent); color: var(--text); }
-.stab.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+#load-bar.done { display: none; }
+#load-bar .spin { width: 13px; height: 13px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+#load-msg { font-size: 11px; color: var(--muted); }
 
 /* Stats */
-#stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 10px 12px; flex-shrink: 0; }
-.sc { background: var(--raised); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; }
-.sc .sl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
-.sc .sv { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--cyan); margin-top: 3px; }
-
-/* List tabs */
-#ltabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.lt { flex: 1; padding: 8px; font-size: 12px; font-weight: 500; color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
-.lt:hover { color: var(--text); }
-.lt.on { color: var(--accent); border-bottom-color: var(--accent); }
+#stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px 0; flex-shrink: 0; }
+.sc { background: var(--raised); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+.sc .sl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.sc .sv { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--cyan); margin-top: 3px; }
 
 /* Search */
-#searchbox { padding: 7px 12px 3px; flex-shrink: 0; position: relative; }
+#searchbox { padding: 10px 12px 3px; flex-shrink: 0; position: relative; }
 #search-icon { position: absolute; left: 21px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 #searchinput {
   width: 100%; background: var(--raised); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 9px 5px 28px;
+  border-radius: 6px; padding: 5px 9px 5px 27px;
   font-family: var(--font); font-size: 12px; color: var(--text);
   outline: none; transition: border-color .15s;
 }
 #searchinput:focus { border-color: var(--accent); }
 #searchinput::placeholder { color: var(--muted); }
-#srcount { font-size: 10px; color: var(--dim); padding: 2px 12px; flex-shrink: 0; min-height: 17px; }
+#srcount { font-size: 10px; color: var(--dim); padding: 3px 12px; flex-shrink: 0; min-height: 17px; }
 
 /* Scroll area */
 #lscroll { flex: 1; position: relative; overflow: hidden; }
-.ls-panel { position: absolute; inset: 0; overflow-y: auto; }
-.ls-panel::-webkit-scrollbar { width: 3px; }
-.ls-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
-#lr-panel { display: block; }
-#lc-panel { display: none; }
+#lr-panel {
+  position: absolute; inset: 0; overflow-y: auto;
+}
+#lr-panel::-webkit-scrollbar { width: 3px; }
+#lr-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
 
-/* List items — fixed height for virtual scroll */
+/* List items — fixed 34px height for virtual scroll */
 .li {
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 10px 0 12px; cursor: default; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 10px 0 12px; height: 34px; flex-shrink: 0;
   border-bottom: 1px solid #0a0d13; transition: background .1s;
 }
 .li:hover { background: var(--raised); }
-.lrank { font-family: var(--mono); font-size: 10px; color: var(--dim); width: 22px; text-align: right; flex-shrink: 0; }
-.lname { font-size: 12px; color: #a0aabb; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lbar-w { width: 32px; flex-shrink: 0; }
-.lbar { height: 2px; background: var(--accent); border-radius: 1px; opacity: 0.6; }
-.lval { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 46px; text-align: right; flex-shrink: 0; white-space: nowrap; }
-/* Go-to button on each row */
+.lrank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 18px; text-align: right; flex-shrink: 0; }
+.lid   { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0; }
+.lname { font-size: 11px; color: #9aa3b5; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbar-w { width: 28px; flex-shrink: 0; }
+.lbar { height: 2px; background: var(--accent); border-radius: 1px; opacity: 0.55; }
+.lval { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 .lgo {
-  flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px;
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--border); background: transparent;
-  color: var(--dim); cursor: pointer; font-size: 11px; line-height: 1;
+  color: var(--dim); cursor: pointer; font-size: 10px;
   display: flex; align-items: center; justify-content: center;
-  transition: all .12s;
+  transition: all .1s;
 }
 .lgo:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* ── Map ─────────────────────────────────────────────────── */
-#mwrap { flex: 1; position: relative; }
-#map { width: 100%; height: 100%; }
-#mcontrols { position: absolute; top: 14px; right: 14px; z-index: 400; display: flex; gap: 6px; align-items: center; }
-.mbtn {
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 7px;
-  padding: 6px 13px; font-size: 12px; font-family: var(--font); font-weight: 500;
-  color: var(--muted); cursor: pointer; transition: all .15s;
-}
-.mbtn:hover { color: var(--text); border-color: var(--dim); }
-.mbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-#minfo {
+#mwrap { flex: 1; position: relative; background: var(--bg); }
+#map { width: 100%; height: 100%; background: var(--bg); }
+#minfo-pill {
+  position: absolute; top: 14px; right: 14px; z-index: 400;
   font-family: var(--mono); font-size: 11px; color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(10px); border: 1px solid var(--border);
-  border-radius: 7px; padding: 6px 11px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+  border-radius: 7px; padding: 5px 11px;
 }
 
-/* Loading */
+/* Loading overlay on map */
 #mload {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  z-index: 300; display: none; align-items: center; gap: 10px;
+  z-index: 300; display: flex; align-items: center; gap: 10px;
   background: color-mix(in srgb, var(--surface) 95%, transparent);
   border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px;
 }
-#mload.vis { display: flex; }
+#mload.done { display: none; }
 #mload .spin { width: 18px; height: 18px; border: 2px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 #mload span { font-size: 13px; color: var(--muted); }
 
-/* Empty */
-#empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: 10px; }
-#empty .ei { font-size: 48px; opacity: 0.25; }
-#empty .et { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Popup */
-.leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; box-shadow: 0 12px 40px rgba(0,0,0,.65) !important; padding: 0 !important; }
+.leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; box-shadow: 0 12px 40px rgba(0,0,0,.7) !important; padding: 0 !important; }
 .leaflet-popup-tip-container { display: none; }
 .leaflet-popup-content { margin: 0 !important; }
-.pu { padding: 13px 15px; min-width: 170px; }
-.pu-name { font-size: 14px; font-weight: 600; margin-bottom: 7px; }
-.pu-row { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.pu { padding: 12px 14px; min-width: 160px; }
+.pu-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.pu-row { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 .pu-row b { color: #94a3b8; font-weight: 500; }
-.pu-link { display: inline-block; margin-top: 9px; background: var(--accent); color: #fff; padding: 5px 11px; border-radius: 6px; font-size: 12px; font-weight: 500; text-decoration: none; }
+.pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; text-decoration: none; }
 .pu-link:hover { opacity: .85; }
+
+/* Override Leaflet zoom controls */
+.leaflet-control-zoom a { background: var(--surface) !important; border-color: var(--border) !important; color: var(--muted) !important; }
+.leaflet-control-zoom a:hover { background: var(--raised) !important; color: var(--text) !important; }
 </style>
 </head>
 <body>
 <div id="app">
+
 <aside>
   <div id="s-head">
-    <h1><span class="dot"></span> Wplace Leaderboard</h1>
+    <h1><span class="dot"></span>Wplace Leaderboard</h1>
     <div id="big-num" class="idle">—</div>
     <div id="big-label">total pixels painted</div>
   </div>
 
-  <!-- Load sources: file upload OR GitHub URL -->
-  <div id="sources">
-    <div id="drop" onclick="fi.click()">
-      <div class="di">📂</div>
-      <div>
-        <div class="dt">Drop or click to upload CSV</div>
-        <div class="ds">Multiple snapshots supported</div>
-      </div>
-    </div>
-    <input type="file" id="fi" accept=".csv" multiple>
-
-    <div id="gh-row">
-      <span id="gh-icon">🐙</span>
-      <input id="gh-input" type="text" placeholder="Paste GitHub CSV URL and press Enter…"
-             onkeydown="if(event.key==='Enter') loadFromGithub()">
-      <button id="gh-load" onclick="loadFromGithub()">Load</button>
-    </div>
-    <div id="gh-status"></div>
+  <div id="load-bar">
+    <div class="spin"></div>
+    <span id="load-msg">Fetching leaderboard…</span>
   </div>
-
-  <div id="snaptabs"></div>
 
   <div id="stats">
     <div class="sc"><div class="sl">Regions</div><div class="sv" id="s-reg">—</div></div>
-    <div class="sc"><div class="sl">Max pixels</div><div class="sv" id="s-max">—</div></div>
-  </div>
-
-  <div id="ltabs">
-    <button class="lt on" onclick="switchTab('r')">Regions</button>
-    <button class="lt" onclick="switchTab('c')">Countries</button>
+    <div class="sc"><div class="sl">Top region</div><div class="sv" id="s-max">—</div></div>
   </div>
 
   <div id="searchbox">
-    <svg id="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg id="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
     </svg>
     <input id="searchinput" type="text" placeholder="Search name or region ID…" oninput="onSearch(this.value)">
@@ -243,36 +171,40 @@ aside {
   <div id="srcount"></div>
 
   <div id="lscroll">
-    <div id="lr-panel" class="ls-panel"></div>
-    <div id="lc-panel" class="ls-panel"></div>
+    <div id="lr-panel"></div>
   </div>
 </aside>
 
 <div id="mwrap">
   <div id="map"></div>
-  <div id="mcontrols">
-    <div id="minfo">— regions</div>
-    <button class="mbtn on" id="b-pts" onclick="setMode('pts')">All Regions</button>
-    <button class="mbtn" id="b-heat" onclick="setMode('heat')">Density</button>
-  </div>
-  <div id="mload"><div class="spin"></div><span>Rendering…</span></div>
-  <div id="empty">
-    <div class="ei">🌍</div>
-    <div class="et">Upload a CSV file,<br>or paste a GitHub URL above</div>
-  </div>
-</div>
+  <div id="minfo-pill">— regions</div>
+  <div id="mload"><div class="spin"></div><span id="mload-msg">Loading…</span></div>
 </div>
 
+</div>
 <script>
+// ── Hardcoded source ──────────────────────────────────────────────────────────
+const CSV_URL = 'https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/region_leaderboard.csv';
+
 // ── Map setup ─────────────────────────────────────────────────────────────────
-const map = L.map('map', { zoomControl: false, center: [25, 15], zoom: 2 });
+const map = L.map('map', { zoomControl: false, center: [25, 10], zoom: 2 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+
+// Base tile layer (no labels — our filled overlay sits on top)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
   subdomains: 'abcd', maxZoom: 19
 }).addTo(map);
 
-// ── Color gradient ────────────────────────────────────────────────────────────
+// Labels-only layer rendered above the filled overlay
+map.createPane('labelsPane');
+map.getPane('labelsPane').style.zIndex = '320';
+map.getPane('labelsPane').style.pointerEvents = 'none';
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
+}).addTo(map);
+
+// ── Gradient (returns [r,g,b] — fast, no string parsing) ──────────────────────
 const STOPS = [
   [0.00, [26,  5, 64]],
   [0.20, [91, 33,182]],
@@ -281,23 +213,23 @@ const STOPS = [
   [0.85, [245,158, 11]],
   [1.00, [255, 45,111]],
 ];
-function gradColor(t) {
+function gradRGB(t) {
   for (let i = 1; i < STOPS.length; i++) {
-    const [t0, c0] = STOPS[i-1], [t1, c1] = STOPS[i];
+    const [t0,c0] = STOPS[i-1], [t1,c1] = STOPS[i];
     if (t <= t1) {
-      const f = (t - t0) / (t1 - t0);
-      return `rgb(${c0.map((v,j) => v + f*(c1[j]-v)|0).join(',')})`;
+      const f = (t-t0)/(t1-t0);
+      return [c0[0]+f*(c1[0]-c0[0])|0, c0[1]+f*(c1[1]-c0[1])|0, c0[2]+f*(c1[2]-c0[2])|0];
     }
   }
-  return 'rgb(255,45,111)';
+  return [255,45,111];
 }
 
-// ── Coord computation ─────────────────────────────────────────────────────────
+// ── Region coordinates ────────────────────────────────────────────────────────
 function regionCoords(rid) {
-  const x = (rid - 1) % 512, y = (rid - 1) / 512 | 0;
-  const lng = ((x + 0.5) / 512) * 360 - 180;
-  const n   = Math.PI - 2 * Math.PI * (y + 0.5) / 512;
-  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  const x = (rid-1) % 512, y = (rid-1)/512|0;
+  const lng = ((x+0.5)/512)*360 - 180;
+  const n   = Math.PI - 2*Math.PI*(y+0.5)/512;
+  const lat = (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   return [lat, lng];
 }
 
@@ -305,7 +237,7 @@ function regionCoords(rid) {
 const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString();
 
 function animCount(el, to) {
-  const s = Date.now(), d = 900;
+  const s = Date.now(), d = 800;
   const tick = () => {
     const p = Math.min((Date.now()-s)/d,1), e = 1-Math.pow(1-p,3);
     el.textContent = fmt(Math.round(to*e));
@@ -314,102 +246,120 @@ function animCount(el, to) {
   requestAnimationFrame(tick);
 }
 
-// ── Canvas overlay ────────────────────────────────────────────────────────────
-const CanvasLayer = L.Layer.extend({
+// ── Filled overlay layer ──────────────────────────────────────────────────────
+// Builds a 512×512 ImageData (one pixel = one wplace region) then renders each
+// frame with a single ctx.drawImage call — O(1) per frame, no per-point loops.
+//
+// The wplace 512×512 grid is uniform in Web Mercator space, so it maps
+// perfectly onto Leaflet's tile coordinate system via latLngToContainerPoint.
+
+const WORLD_LAT  =  85.0511287798066;   // Leaflet / Web Mercator north limit
+const WORLD_LAT2 = -85.0511287798066;
+
+const FilledLayer = L.Layer.extend({
   onAdd(map) {
     this._c = document.createElement('canvas');
-    this._c.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+    this._c.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:260;';
     map.getContainer().appendChild(this._c);
-    this._onResize();
-    map.on('resize', this._onResize, this);
-    map.on('moveend zoomend', this._draw, this);
-    if ((this._rows?.length||0) < 8000) map.on('move', this._draw, this);
-    else {
-      map.on('movestart', () => { this._c.style.opacity='0'; }, this);
-      map.on('moveend',   () => { this._c.style.opacity='1'; }, this);
-    }
+    this._resize();
+    map.on('resize',                         this._resize, this);
+    map.on('move zoom moveend zoomend viewreset', this._draw,  this);
     this._draw();
   },
-  onRemove(map) { this._c.remove(); map.off('resize moveend zoomend move movestart', null, this); },
-  setRows(rows) { this._rows = rows; if (this._c) this._draw(); },
-  _onResize() { const s=this._map.getSize(); this._c.width=s.x; this._c.height=s.y; this._draw(); },
+  onRemove(map) {
+    this._c.remove();
+    map.off('resize move zoom moveend zoomend viewreset', null, this);
+  },
+  setOffscreen(os) { this._os = os; if (this._c) this._draw(); },
+  _resize() {
+    const s = this._map.getSize();
+    this._c.width = s.x; this._c.height = s.y;
+    this._draw();
+  },
   _draw() {
-    const rows = this._rows;
-    if (!rows?.length) return;
-    const map=this._map, c=this._c, ctx=c.getContext('2d');
-    const W=c.width, H=c.height;
-    ctx.clearRect(0,0,W,H);
+    if (!this._os) return;
+    const ctx = this._c.getContext('2d');
+    const W = this._c.width, H = this._c.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = false;
 
-    const b    = map.getBounds();
-    const sw   = b.getSouthWest(), ne = b.getNorthEast();
-    const logMax = Math.log1p(rows[0].pixels) || 1;
-    const zoom = map.getZoom();
-    const ds   = zoom<3?2:zoom<5?2:zoom<8?3:zoom<11?4:6;
-    const half = ds>>1;
+    // Find where the wplace world corners land on screen.
+    // latLngToContainerPoint accounts for zoom, pan, AND CSS-transform pan.
+    const tl = this._map.latLngToContainerPoint([WORLD_LAT,  -180]);
+    const br = this._map.latLngToContainerPoint([WORLD_LAT2,  180]);
+    const dw = br.x - tl.x, dh = br.y - tl.y;
+    if (dw <= 0 || dh <= 0) return;
 
-    const buckets = new Array(20).fill(null).map(()=>[]);
-    for (let i=0; i<rows.length; i++) {
-      const r=rows[i], ll=r._ll;
-      if (ll[0]<sw.lat||ll[0]>ne.lat) continue;
-      let lng=ll[1];
-      if (ne.lng>180) { if (lng<0) lng+=360; }
-      else if (sw.lng<-180) { if (lng>0) lng-=360; }
-      if (lng<sw.lng||lng>ne.lng) continue;
-      const t  = Math.log1p(r.pixels) / logMax;
-      const bi = Math.min((t*20)|0, 19);
-      buckets[bi].push(i);
-    }
-    for (let bi=0; bi<20; bi++) {
-      if (!buckets[bi].length) continue;
-      ctx.fillStyle = gradColor(bi/19);
-      for (const i of buckets[bi]) {
-        const pt = map.latLngToContainerPoint(rows[i]._ll);
-        ctx.fillRect(pt.x-half|0, pt.y-half|0, ds, ds);
-      }
+    // Draw once for the main world, plus one repeat each side for low-zoom wrapping
+    for (let rep = -1; rep <= 1; rep++) {
+      const x = tl.x + rep * dw;
+      if (x + dw < 0 || x > W) continue;           // outside viewport, skip
+      ctx.drawImage(this._os, 0, 0, 512, 512, x, tl.y, dw, dh);
     }
   }
 });
 
-// ── Virtual List ──────────────────────────────────────────────────────────────
-// Renders only the ~30 visible DOM nodes regardless of total row count.
+// Build the 512×512 offscreen bitmap from CSV rows — called once after data loads
+function buildOffscreen(rows, maxPx) {
+  const os  = document.createElement('canvas');
+  os.width = os.height = 512;
+  const ctx = os.getContext('2d');
+  const img = ctx.createImageData(512, 512);
+  const d   = img.data;
+
+  // Base colour for tiles not present in the CSV (dark, slightly lighter than bg)
+  for (let i = 0; i < 512*512*4; i += 4) {
+    d[i]=18; d[i+1]=23; d[i+2]=34; d[i+3]=255;
+  }
+
+  const logMax = Math.log1p(maxPx) || 1;
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const x = (row.regionId-1) % 512;
+    const y = (row.regionId-1) / 512 | 0;
+    if (x < 0 || x > 511 || y < 0 || y > 511) continue;
+    const t    = Math.log1p(row.pixels) / logMax;
+    const [cr,cg,cb] = gradRGB(t);
+    const idx  = (y*512 + x) * 4;
+    d[idx]=cr; d[idx+1]=cg; d[idx+2]=cb; d[idx+3]=220;   // slight transparency for labels to bleed through
+  }
+
+  ctx.putImageData(img, 0, 0);
+  return os;
+}
+
+// ── Virtual List — renders only ~30 DOM nodes regardless of dataset size ──────
 class VirtualList {
   constructor(container, itemH=34) {
-    this._el    = container;
-    this._itemH = itemH;
-    this._all   = [];
-    this._rows  = [];
-    this._maxPx = 1;
-    this._key   = null;
+    this._el = container; this._ih = itemH;
+    this._all=[]; this._rows=[]; this._mx=1; this._key=null;
 
-    const spacer = document.createElement('div');
-    spacer.style.cssText = 'position:relative;width:100%;';
-    const inner  = document.createElement('div');
-    inner.style.cssText  = 'position:absolute;top:0;left:0;right:0;';
+    const spacer=document.createElement('div');
+    spacer.style.cssText='position:relative;width:100%;';
+    const inner=document.createElement('div');
+    inner.style.cssText='position:absolute;top:0;left:0;right:0;';
     spacer.appendChild(inner);
     container.appendChild(spacer);
-    this._spacer = spacer;
-    this._inner  = inner;
+    this._sp=spacer; this._in=inner;
 
-    container.addEventListener('scroll', ()=>this._paint(), { passive:true });
+    container.addEventListener('scroll', ()=>this._paint(), {passive:true});
     if (typeof ResizeObserver!=='undefined')
-      new ResizeObserver(()=>{ this._key=null; this._paint(); }).observe(container);
+      new ResizeObserver(()=>{this._key=null;this._paint();}).observe(container);
   }
 
   load(rows, maxPx) {
-    this._all   = rows;
-    this._maxPx = maxPx||1;
-    this._el.scrollTop = 0;
-    this._key = null;
+    this._all=rows; this._mx=maxPx||1;
+    this._el.scrollTop=0; this._key=null;
     this.filter('');
   }
 
   filter(q) {
-    const s = q.trim().toLowerCase();
+    const s=q.trim().toLowerCase();
     this._rows = s
-      ? this._all.filter(r => r.name.toLowerCase().includes(s) || String(r.regionId).includes(s))
+      ? this._all.filter(r=>r.name.toLowerCase().includes(s)||String(r.regionId).includes(s))
       : this._all;
-    this._el.scrollTop = 0;
-    this._key = null;
+    this._el.scrollTop=0; this._key=null;
     this._paint();
     const n=this._rows.length, tot=this._all.length;
     const el=document.getElementById('srcount');
@@ -419,202 +369,122 @@ class VirtualList {
   }
 
   _paint() {
-    const {_el:el, _itemH:ih, _spacer, _inner, _rows:rows, _maxPx:mx} = this;
-    const n = rows.length;
-    _spacer.style.height = `${n*ih}px`;
-
-    const viewH = el.clientHeight||400;
-    const top   = el.scrollTop;
-    const start = Math.max(0, Math.floor(top/ih)-10);
-    const end   = Math.min(n, start+Math.ceil(viewH/ih)+15);
-
-    const key = `${start}:${end}:${n}`;
+    const {_el:el,_ih:ih,_sp:sp,_in:inn,_rows:rows,_mx:mx}=this;
+    const n=rows.length;
+    sp.style.height=`${n*ih}px`;
+    const viewH=el.clientHeight||400, top=el.scrollTop;
+    const start=Math.max(0,Math.floor(top/ih)-10);
+    const end=Math.min(n,start+Math.ceil(viewH/ih)+15);
+    const key=`${start}:${end}:${n}`;
     if (key===this._key) return;
-    this._key = key;
-
-    _inner.style.transform = `translateY(${start*ih}px)`;
-
-    const frag = document.createDocumentFragment();
-    for (let i=start; i<end; i++) {
-      const r   = rows[i];
-      const div = document.createElement('div');
-      div.className = 'li';
-      const pct = mx>0 ? (r.pixels/mx*100).toFixed(1) : 0;
-      div.innerHTML =
+    this._key=key;
+    inn.style.transform=`translateY(${start*ih}px)`;
+    const frag=document.createDocumentFragment();
+    for (let i=start;i<end;i++) {
+      const r=rows[i];
+      const div=document.createElement('div');
+      div.className='li';
+      const pct=mx>0?(r.pixels/mx*100).toFixed(1):0;
+      div.innerHTML=
         `<span class="lrank">${r.rank}</span>`+
+        `<span class="lid">#${r.regionId}</span>`+
         `<span class="lname" title="${r.name}">${r.name}</span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
-        `<button class="lgo" title="Go to region on map">↗</button>`;
-      const cap = r;
-      div.querySelector('.lgo').addEventListener('click', e => { e.stopPropagation(); flyTo(cap); });
+        `<button class="lgo" title="Fly to region">↗</button>`;
+      const cap=r;
+      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();flyTo(cap);});
       frag.appendChild(div);
     }
-    _inner.replaceChildren(frag);
+    inn.replaceChildren(frag);
   }
 }
 
-let vlist = null;
+let vlist=null;
 function getVlist() {
-  if (!vlist) vlist = new VirtualList(document.getElementById('lr-panel'));
+  if (!vlist) vlist=new VirtualList(document.getElementById('lr-panel'));
   return vlist;
 }
 function onSearch(val) { getVlist().filter(val); }
 
-// ── Heatmap ───────────────────────────────────────────────────────────────────
-let heatLib=false, heatLayer=null, dotsLayer=null, mode='pts';
-
-function ensureHeat(cb) {
-  if (heatLib) { cb(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js';
-  s.onload = ()=>{ heatLib=true; cb(); };
-  document.head.appendChild(s);
-}
-
 // ── State ─────────────────────────────────────────────────────────────────────
-const snaps = {};
-let active  = null;
+let filledLayer = null;
+let rowsData    = [];
 
-// ── File upload ───────────────────────────────────────────────────────────────
-const drop = document.getElementById('drop');
-const fi   = document.getElementById('fi');
-
-drop.addEventListener('dragover',  e=>{ e.preventDefault(); drop.classList.add('over'); });
-drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
-drop.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('over'); loadFiles([...e.dataTransfer.files]); });
-fi.addEventListener('change', ()=>{ loadFiles([...fi.files]); fi.value=''; });
-
-function loadFiles(files) {
-  files.filter(f=>f.name.endsWith('.csv')).forEach(f=>{
-    Papa.parse(f, { header:true, skipEmptyLines:true, complete({data}) {
-      ingestCSV(f.name, data);
-    }});
-  });
-}
-
-// ── GitHub URL loading ────────────────────────────────────────────────────────
-function loadFromGithub() {
-  let url = document.getElementById('gh-input').value.trim();
-  if (!url) return;
-
-  // Convert github.com blob URL → raw.githubusercontent.com
-  if (url.includes('github.com') && !url.includes('raw.githubusercontent.com')) {
-    url = url
-      .replace('https://github.com/', 'https://raw.githubusercontent.com/')
-      .replace('/blob/', '/');
-  }
-
-  const status = document.getElementById('gh-status');
-  const btn    = document.getElementById('gh-load');
-  status.style.color = 'var(--muted)';
-  status.textContent = 'Fetching…';
-  btn.style.opacity  = '0.5';
-  btn.style.pointerEvents = 'none';
-
-  fetch(url)
+// ── Auto-load from GitHub ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mload').classList.remove('done');
+  fetch(CSV_URL)
     .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status} — check the URL and make sure the file is public`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      document.getElementById('load-msg').textContent  = 'Parsing…';
+      document.getElementById('mload-msg').textContent = 'Parsing…';
       return r.text();
     })
-    .then(csvText => {
-      const parsed = Papa.parse(csvText, { header:true, skipEmptyLines:true });
-      if (!parsed.data.length) throw new Error('CSV appears empty');
-      const filename = url.split('/').pop() || 'github.csv';
-      ingestCSV(filename, parsed.data);
-      status.style.color = 'var(--cyan)';
-      status.textContent = `✓ Loaded ${filename}`;
+    .then(text => {
+      const {data} = Papa.parse(text, {header:true, skipEmptyLines:true});
+      ingestCSV(data);
     })
     .catch(err => {
-      status.style.color = '#f87171';
-      status.textContent = `✗ ${err.message}`;
-    })
-    .finally(() => {
-      btn.style.opacity = '';
-      btn.style.pointerEvents = '';
+      const msg = `Error: ${err.message}`;
+      document.getElementById('load-msg').textContent   = msg;
+      document.getElementById('mload-msg').textContent  = msg;
+      document.getElementById('load-bar').style.background =
+        'color-mix(in srgb,#f87171 12%,var(--raised))';
     });
-}
+});
 
-// ── Shared CSV ingestion ──────────────────────────────────────────────────────
-function ingestCSV(filename, data) {
+// ── Ingest parsed CSV ─────────────────────────────────────────────────────────
+function ingestCSV(data) {
   const rows = data
-    .filter(r => r.regionId)          // keep every row that has a regionId
-    .map(r => {
-      const row = {
-        rank:      +r.rank      || 0,
-        regionId:  +r.regionId,
-        name:      r.name       || `Region #${r.regionId}`,
-        pixels:    +r.pixels    || 0,
-        countryId: +r.countryId || 0,
-        url:       r.url        || ''
-      };
-      row._ll = regionCoords(row.regionId);
-      return row;
-    });
-  snaps[filename] = rows;
-  rebuildTabs();
-  setActive(filename);
-}
+    .filter(r => r.regionId)
+    .map(r => ({
+      rank:     +r.rank     || 0,
+      regionId: +r.regionId,
+      name:     r.name      || `Region #${r.regionId}`,
+      pixels:   +r.pixels   || 0,
+      url:      r.url       || ''
+    }));
 
-// ── Tab management ────────────────────────────────────────────────────────────
-function rebuildTabs() {
-  const keys = Object.keys(snaps);
-  const bar  = document.getElementById('snaptabs');
-  bar.style.display = keys.length > 1 ? 'flex' : 'none';
-  bar.innerHTML = keys.map(k=>{
-    const label = k.replace(/\.csv$/i,'').replace(/region_leaderboard_?/i,'') || k;
-    return `<button class="stab${k===active?' on':''}" title="${k}" onclick="setActive(${JSON.stringify(k)})">${label.slice(0,16)}</button>`;
-  }).join('');
-}
+  // Pre-cache coords on each row for the click handler
+  for (const r of rows) r._ll = regionCoords(r.regionId);
 
-function setActive(key) {
-  active = key;
-  document.querySelectorAll('.stab').forEach(t=>t.classList.toggle('on', t.title===key));
-  render(snaps[key]);
+  rowsData = rows;
+  render(rows);
+
+  document.getElementById('load-bar').classList.add('done');
+  document.getElementById('mload').classList.add('done');
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render(rows) {
-  document.getElementById('empty').style.display = 'none';
-
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
-  const numEl   = document.getElementById('big-num');
+
+  // Stats
+  const numEl = document.getElementById('big-num');
   numEl.classList.remove('idle');
   animCount(numEl, totalPx);
   document.getElementById('s-reg').textContent = rows.length.toLocaleString();
   document.getElementById('s-max').textContent = fmt(maxPx);
-  document.getElementById('minfo').textContent = `${rows.length.toLocaleString()} regions`;
+  document.getElementById('minfo-pill').textContent = `${rows.length.toLocaleString()} regions`;
 
-  // Canvas
-  if (dotsLayer) { map.removeLayer(dotsLayer); dotsLayer=null; }
-  if (heatLayer) { map.removeLayer(heatLayer); heatLayer=null; }
-  dotsLayer = new CanvasLayer();
-  dotsLayer.setRows(rows);
+  // Build offscreen bitmap and attach to layer — O(n) once, O(1) per frame after
+  const os = buildOffscreen(rows, maxPx);
+  if (filledLayer) map.removeLayer(filledLayer);
+  filledLayer = new FilledLayer();
+  filledLayer.addTo(map);
+  filledLayer.setOffscreen(os);
 
-  // Virtual list — ALL rows, no cap
+  // Virtual sidebar list
   document.getElementById('searchinput').value = '';
   getVlist().load(rows, maxPx);
-
-  // Countries
-  const byCid = {};
-  rows.forEach(r=>{ if (r.countryId) byCid[r.countryId]=(byCid[r.countryId]||0)+r.pixels; });
-  const topC = Object.entries(byCid).sort((a,b)=>b[1]-a[1]).slice(0,200);
-  const maxC = topC[0]?.[1]||1;
-  document.getElementById('lc-panel').innerHTML = topC.length
-    ? topC.map(([cid,px],i)=>{
-        const pct=(px/maxC*100).toFixed(1);
-        return `<div class="li"><span class="lrank">${i+1}</span><span class="lname">Country ${cid}</span><div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div><span class="lval">${fmt(px)}</span></div>`;
-      }).join('')
-    : `<div class="li"><span class="lname" style="color:var(--muted)">No country data</span></div>`;
-
-  setMode(mode);
 }
 
 // ── flyTo ─────────────────────────────────────────────────────────────────────
 function flyTo(r) {
-  map.flyTo(r._ll, 9, { duration: 1.0 });
-  L.popup({ maxWidth: 240 }).setLatLng(r._ll).setContent(`
+  map.flyTo(r._ll, 10, {duration:1.1});
+  L.popup({maxWidth:230}).setLatLng(r._ll).setContent(`
     <div class="pu">
       <div class="pu-name">${r.name}</div>
       <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
@@ -624,62 +494,26 @@ function flyTo(r) {
     </div>`).openOn(map);
 }
 
-// ── setMode ───────────────────────────────────────────────────────────────────
-function setMode(m) {
-  mode = m;
-  document.getElementById('b-pts').classList.toggle('on', m==='pts');
-  document.getElementById('b-heat').classList.toggle('on', m==='heat');
-
-  if (m==='pts') {
-    if (heatLayer) map.removeLayer(heatLayer);
-    if (dotsLayer) dotsLayer.addTo(map);
-  } else {
-    if (dotsLayer && map.hasLayer(dotsLayer)) map.removeLayer(dotsLayer);
-    const rows = active ? snaps[active] : null;
-    if (!rows) return;
-    const maxPx  = rows[0]?.pixels||1;
-    const logMax = Math.log1p(maxPx);
-    const pts    = rows.map(r=>[...r._ll, Math.log1p(r.pixels)/logMax]);
-    ensureHeat(()=>{
-      if (heatLayer) map.removeLayer(heatLayer);
-      heatLayer = L.heatLayer(pts, {
-        radius:20, blur:28, maxZoom:7, max:1.0,
-        gradient:{0.0:'#1a0540',0.3:'#5b21b6',0.55:'#7c6ff7',0.75:'#22d3ee',0.9:'#f59e0b',1.0:'#ff2d6f'}
-      }).addTo(map);
-    });
-  }
-}
-
-// ── switchTab ─────────────────────────────────────────────────────────────────
-function switchTab(t) {
-  document.querySelectorAll('.lt').forEach((b,i)=>b.classList.toggle('on',['r','c'][i]===t));
-  document.getElementById('lr-panel').style.display = t==='r'?'block':'none';
-  document.getElementById('lc-panel').style.display = t==='c'?'block':'none';
-  document.getElementById('searchbox').style.display = t==='r'?'':'none';
-  document.getElementById('srcount').style.display   = t==='r'?'':'none';
-}
-
-// ── Map click → nearest region ────────────────────────────────────────────────
+// ── Map click — find nearest visible region ───────────────────────────────────
 map.on('click', e => {
-  if (mode!=='pts' || !active) return;
-  const rows = snaps[active];
-  if (!rows?.length) return;
+  if (!rowsData.length) return;
   const cp = e.containerPoint;
   const b  = map.getBounds();
   const sw = b.getSouthWest(), ne = b.getNorthEast();
   let best=null, bestD=Infinity;
-  for (const r of rows) {
+
+  for (const r of rowsData) {
     const ll=r._ll;
     if (ll[0]<sw.lat||ll[0]>ne.lat) continue;
     let lng=ll[1];
-    if (ne.lng>180) { if (lng<0) lng+=360; }
-    else if (sw.lng<-180) { if (lng>0) lng-=360; }
+    if (ne.lng>180){if(lng<0)lng+=360;}
+    else if(sw.lng<-180){if(lng>0)lng-=360;}
     if (lng<sw.lng||lng>ne.lng) continue;
     const pt=map.latLngToContainerPoint(r._ll);
     const d=(pt.x-cp.x)**2+(pt.y-cp.y)**2;
-    if (d<bestD) { bestD=d; best=r; }
+    if (d<bestD){bestD=d;best=r;}
   }
-  if (best && bestD<400) flyTo(best);
+  if (best && bestD < 600) flyTo(best);
 });
 </script>
 </body>
