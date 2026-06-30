@@ -64,6 +64,7 @@ aside.folded #fold-btn svg { transform: rotate(180deg); }
   align-items: center; justify-content: center; transition: color .15s, background .15s;
 }
 #sidebar-reopen:hover { color: var(--text); background: var(--raised); }
+#sidebar-reopen-label { display: none; }
 /* Resize handle */
 #resize-handle {
   position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
@@ -173,13 +174,14 @@ aside.folded #resize-handle { display: none; }
 .lbar-w { width: 26px; flex-shrink: 0; }
 .lbar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.6; }
 .lval { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
-.lgo {
+.lgo, .lwp {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--border); background: transparent;
   color: var(--dim); cursor: pointer; font-size: 10px;
   display: flex; align-items: center; justify-content: center; transition: all .1s;
 }
-.lgo:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.lgo:hover, .lwp:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.lwp-off { opacity: .25; pointer-events: none; }
 
 /* ── Stats tab ───────────────────────────────────────────── */
 .sect { padding: 12px 12px 0; }
@@ -359,6 +361,48 @@ kbd {
 .ds-tick-label { font-size: 8px; font-family: var(--mono); color: var(--dim); white-space: nowrap; }
 .ds-tick.current .ds-tick-mark { background: var(--accent); }
 .ds-tick.current .ds-tick-label { color: var(--accent); }
+
+/* ── Mobile layout ──────────────────────────────────────────
+   Below 768px the sidebar becomes a full-screen slide-up panel
+   instead of a fixed-width side column, so the map gets the
+   whole screen and the leaderboard is one tap away. */
+@media (max-width: 768px) {
+  aside {
+    position: fixed; inset: 0; z-index: 700;
+    width: 100% !important; min-width: 0 !important;
+    transform: translateY(0);
+    transition: transform .3s cubic-bezier(0.4,0,0.2,1);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  aside.folded { transform: translateY(100%); width: 100% !important; }
+  #resize-handle { display: none; }
+  #s-head { padding-top: max(12px, env(safe-area-inset-top)); }
+
+  /* Reopen control becomes a centered floating pill, not an edge tab */
+  #sidebar-reopen {
+    position: fixed; left: 50%; top: auto; bottom: 18px;
+    transform: translateX(-50%);
+    width: auto; height: 46px; padding: 0 18px 0 16px; gap: 8px;
+    border-radius: 23px; border: 1px solid var(--border);
+    background: var(--accent); color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  #sidebar-reopen:hover { background: var(--accent); color: #fff; }
+  #sidebar-reopen svg { transform: rotate(-90deg); }
+  #sidebar-reopen-label { display: inline; font-family: var(--font); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  #mwrap.has-slider #sidebar-reopen { bottom: 96px; }
+
+  /* Bigger touch targets on the timeline slider */
+  .ds-nav { width: 34px; height: 34px; font-size: 18px; }
+  #date-range::-webkit-slider-thumb { width: 20px; height: 20px; }
+  #date-range::-moz-range-thumb { width: 20px; height: 20px; }
+  #date-slider-bar { padding: 10px 14px max(10px, env(safe-area-inset-bottom)); }
+
+  /* Free up bottom-right for the legend; zoom control moves to bottom-left */
+  .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
+  #minfo-pill { top: max(14px, env(safe-area-inset-top)); }
+}
 </style>
 </head>
 <body>
@@ -421,6 +465,7 @@ kbd {
       <span class="col-h" style="flex:1;padding-left:4px">Name</span>
       <span style="width:26px"></span>
       <span class="col-h" style="width:50px;text-align:right">Pixels</span>
+      <span style="width:20px"></span>
       <span style="width:20px"></span>
     </div>
 
@@ -525,7 +570,7 @@ kbd {
     <ol class="info-steps">
       <li><span class="istep-num">1</span><span>Click any cell on the map — the hit area scales with zoom, so corners still register when you're zoomed in close.</span></li>
       <li><span class="istep-num">2</span><span>Search by name or region ID, or sort by rank / region ID using the chips above the list.</span></li>
-      <li><span class="istep-num">3</span><span>Click a row (or its ↗ button) to fly there and highlight it in the list — clicking the map does the same in reverse.</span></li>
+      <li><span class="istep-num">3</span><span>Click a row (or its locate button) to fly there and highlight it in the list — clicking the map does the same in reverse. The second button opens that region directly on wplace.live.</span></li>
       <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
       <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
       <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
@@ -553,6 +598,7 @@ kbd {
 <div id="mwrap">
   <button id="sidebar-reopen" onclick="toggleSidebar()" title="Open sidebar">
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <span id="sidebar-reopen-label">Leaderboard</span>
   </button>
   <div id="map"></div>
   <div id="minfo-pill" title="Click for data source & info">
@@ -599,8 +645,17 @@ const snapshotCache    = new Map(); // date → parsed rows (avoids re-fetching)
 let currentSnapshotIdx = 0;
 let loadingSnapshotIdx = -1;        // race-condition guard
 
+// ── World bounds — needed before map init (maxBounds) and by
+// the image overlay + the inverse-projection click lookup below.
+const WORLD_LAT  =  85.0511287798066;
+const WORLD_LAT2 = -85.0511287798066;
+const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
+
 // ── Map setup ─────────────────────────────────────────────
-const map = L.map('map', { zoomControl: false, center: [25, 10], zoom: 2 });
+const map = L.map('map', {
+  zoomControl: false, center: [25, 10], zoom: 2,
+  maxBounds: WORLD_BOUNDS_MAIN, maxBoundsViscosity: 1.0   // locks panning to one world — no blank void past the antimeridian
+});
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
@@ -635,13 +690,27 @@ function gradRGB(t) {
   return [255,45,111];
 }
 
-// ── Region coordinates ────────────────────────────────────
+// ── Region coordinates — forward (id → lat/lng) and inverse ─
 function regionCoords(rid) {
   const x = (rid-1) % 512, y = (rid-1)/512|0;
   const lng = ((x+0.5)/512)*360 - 180;
   const n   = Math.PI - 2*Math.PI*(y+0.5)/512;
   const lat = (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   return [lat, lng];
+}
+
+// Inverse of regionCoords — turns a click's lat/lng straight into a region ID
+// in O(1), no scanning needed. The grid is a perfect Mercator projection so
+// this is an exact cell-membership test, not a nearest-neighbour approximation.
+function latlngToRegionId(lat, lng) {
+  lng = ((lng % 360) + 360) % 360;
+  if (lng >= 180) lng -= 360;
+  const x = Math.min(511, Math.max(0, Math.floor((lng + 180) / 360 * 512)));
+  const clampedLat = Math.min(WORLD_LAT, Math.max(WORLD_LAT2, lat));
+  const latRad = clampedLat * Math.PI / 180;
+  const n = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+  const y = Math.min(511, Math.max(0, Math.floor((Math.PI - n) / (2 * Math.PI) * 512)));
+  return y * 512 + x + 1;
 }
 
 // ── Format ────────────────────────────────────────────────
@@ -657,16 +726,26 @@ function animCount(el, to) {
   requestAnimationFrame(tick);
 }
 
+// ── Row action icons (used by the virtual list below) ──────
+const ICON_LOCATE  = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>';
+const ICON_EXTLINK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
 // ── Image overlay ─────────────────────────────────────────
-const WORLD_LAT  =  85.0511287798066;
-const WORLD_LAT2 = -85.0511287798066;
-const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
 const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
 let filledOverlays = [];
+let lastOverlayBlobUrl = null;
 
-function setFilledOverlay(dataUrl) {
-  filledOverlays.forEach(o => map.removeLayer(o));
-  filledOverlays = [L.imageOverlay(dataUrl, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map)];
+// Renders the 512×512 bitmap via toBlob()+ObjectURL instead of toDataURL() —
+// non-blocking, and skips the ~33% size overhead of base64 encoding.
+function setFilledOverlay(canvas) {
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    filledOverlays.forEach(o => map.removeLayer(o));
+    filledOverlays = [L.imageOverlay(url, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map)];
+    if (lastOverlayBlobUrl) URL.revokeObjectURL(lastOverlayBlobUrl);
+    lastOverlayBlobUrl = url;
+  }, 'image/png');
 }
 
 function buildOffscreen(rows, maxPx) {
@@ -784,16 +863,19 @@ class VirtualList {
       if (r.regionId===selectedRegionId) cls+=' selected';
       div.className=cls;
       const pct=mx>0?(r.pixels/mx*100).toFixed(1):0;
+      const hasUrl = !!r.url;
       div.innerHTML=
         `<span class="lrank">${r.rank}</span>`+
         `<span class="lid">#${r.regionId}</span>`+
         `<span class="lname" title="${r.name}">${r.name}</span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
-        `<button class="lgo" title="Fly to region">↗</button>`;
+        `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
+        `<button class="lwp${hasUrl?'':' lwp-off'}" title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
       div.addEventListener('click', ()=>selectRegion(cap));
       div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectRegion(cap);});
+      if (hasUrl) div.querySelector('.lwp').addEventListener('click',e=>{e.stopPropagation();window.open(cap.url,'_blank','noopener,noreferrer');});
       frag.appendChild(div);
     }
     inn.replaceChildren(frag);
@@ -814,10 +896,14 @@ function getVlist() {
   if (!vlist) vlist=new VirtualList(document.getElementById('lr-panel'));
   return vlist;
 }
-function onSearch(val) { getVlist().filter(val); }
+let searchDebounceT = null;
+function onSearch(val) {
+  clearTimeout(searchDebounceT);
+  searchDebounceT = setTimeout(() => getVlist().filter(val), 100);
+}
 
 // ── State ─────────────────────────────────────────────────
-let rowsData=[], maxPxGlobal=1, selectedRegionId=null;
+let rowsData=[], maxPxGlobal=1, selectedRegionId=null, rowById=new Map();
 
 // ── Date helpers ──────────────────────────────────────────
 function fmtDate(iso) {
@@ -904,6 +990,22 @@ function parseCSVData(data) {
   return rows;
 }
 
+function papaParseUrl(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      worker: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: results => resolve(results.data),
+      error: err => {
+        const status = err && err.status;
+        reject(new Error(status ? `HTTP ${status}` : (err && err.statusText) || 'Network error'));
+      }
+    });
+  });
+}
+
 async function loadSnapshot(idx) {
   if (idx < 0 || idx >= SNAPSHOTS.length) return;
   currentSnapshotIdx = idx;
@@ -924,12 +1026,12 @@ async function loadSnapshot(idx) {
   document.getElementById('mload-msg').textContent = `Loading ${fmtDate(snap.date)}…`;
 
   try {
-    const res  = await fetch(snap.url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
+    // download:true + worker:true fetches AND parses off the main thread,
+    // so the UI never freezes while a ~24MB snapshot loads.
+    const data = await papaParseUrl(snap.url);
     if (loadingSnapshotIdx !== reqIdx) return; // a newer request overtook this one
-    const {data} = Papa.parse(text, {header:true, skipEmptyLines:true});
     const rows = parseCSVData(data);
+    if (!rows.length) throw new Error('CSV parsed but contained no valid rows');
     snapshotCache.set(snap.date, rows);
     rowsData = rows;
     render(rows, snap);
@@ -1017,6 +1119,7 @@ function render(rows, snap) {
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
   maxPxGlobal = maxPx;
+  rowById = new Map(rows.map(r => [r.regionId, r])); // O(1) lookup for map clicks
 
   const numEl = document.getElementById('big-num');
   numEl.classList.remove('idle');
@@ -1038,7 +1141,7 @@ function render(rows, snap) {
   }
 
   renderStats(rows, totalPx, maxPx);
-  setFilledOverlay(buildOffscreen(rows, maxPx).toDataURL());
+  setFilledOverlay(buildOffscreen(rows, maxPx));
 
   document.getElementById('searchinput').value = '';
   getVlist().load(applySort(rows), maxPx);
@@ -1135,36 +1238,37 @@ function selectRegion(r, scroll) {
     vlist._paint();
     if (scroll) vlist.scrollToRegion(r.regionId);
   }
+  // On mobile the sidebar is a full-screen overlay — close it after picking
+  // a region so the fly animation and map are actually visible.
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    const asideEl = document.querySelector('aside');
+    if (asideEl && !asideEl.classList.contains('folded')) toggleSidebar();
+  }
 }
 
-// ── Map click — find nearest region (adaptive hit-radius) ─
+// ── Map click — O(1) region lookup via inverse projection ──
+// The grid is an exact Mercator projection, so the clicked lat/lng maps
+// straight to a region ID — no per-click scan over rowsData needed.
 map.on('click', e => {
   if (!rowsData.length) return;
-  const cp = e.containerPoint;
-  const b  = map.getBounds();
-  const sw = b.getSouthWest(), ne = b.getNorthEast();
+  const id = latlngToRegionId(e.latlng.lat, e.latlng.lng);
+  let row = rowById.get(id);
 
-  // Compute half-cell width in container pixels so corners still register when zoomed in
-  const testLL  = map.containerPointToLatLng(cp);
-  const cellDeg = 360 / 512;
-  const ptA = map.latLngToContainerPoint([testLL.lat, testLL.lng]);
-  const ptB = map.latLngToContainerPoint([testLL.lat, testLL.lng + cellDeg]);
-  const halfCell = Math.abs(ptB.x - ptA.x) * 0.65;
-  const hitThreshSq = Math.pow(Math.max(28, halfCell), 2);
-
-  let best=null, bestD=Infinity;
-  for (const r of rowsData) {
-    const ll=r._ll;
-    if (ll[0]<sw.lat||ll[0]>ne.lat) continue;
-    let lng=ll[1];
-    if (ne.lng>180){if(lng<0)lng+=360;}
-    else if(sw.lng<-180){if(lng>0)lng-=360;}
-    if (lng<sw.lng||lng>ne.lng) continue;
-    const pt=map.latLngToContainerPoint(r._ll);
-    const d=(pt.x-cp.x)**2+(pt.y-cp.y)**2;
-    if (d<bestD){bestD=d;best=r;}
+  // Defensive fallback — only matters if a CSV doesn't cover every region
+  if (!row) {
+    const cx = (id-1) % 512, cy = (id-1)/512|0;
+    outer:
+    for (let dy=-1; dy<=1; dy++) {
+      for (let dx=-1; dx<=1; dx++) {
+        if (!dx && !dy) continue;
+        const nx=cx+dx, ny=cy+dy;
+        if (nx<0||nx>511||ny<0||ny>511) continue;
+        row = rowById.get(ny*512+nx+1);
+        if (row) break outer;
+      }
+    }
   }
-  if (best&&bestD<hitThreshSq) flyTo(best);
+  if (row) selectRegion(row);
 });
 // ── Sidebar toggle ────────────────────────────────────────
 function toggleSidebar() {
@@ -1177,6 +1281,12 @@ function toggleSidebar() {
     if (vlist) { vlist._key = null; vlist._paint(); }
     map.invalidateSize();
   }, 270);
+}
+
+// Mobile starts with the sidebar collapsed so the map is the first thing seen.
+if (window.matchMedia('(max-width: 768px)').matches) {
+  document.querySelector('aside').classList.add('folded');
+  document.getElementById('sidebar-reopen').style.display = 'flex';
 }
 
 // ── Sidebar resize handle ─────────────────────────────────
