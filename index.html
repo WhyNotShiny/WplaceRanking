@@ -585,17 +585,18 @@ kbd {
 
 </div>
 <script>
-// ── Snapshots — oldest → newest (slider goes left → right) ──
-// To add a date: duplicate a line and change the date in the filename.
-// Files must follow the pattern: region_leaderboard_YYYY-MM-DD.csv
-const SNAPSHOTS = [
-  { date: '2026-06-22', url: 'https://github.com/WhyNotShiny/WplaceRanking/blob/19b33a0c10b32038a4b0388188e78b1eb07e55e0/Leaderboard_files/region_leaderboard_2026-06-22.csv' },
-  { date: '2026-06-28', url: 'https://github.com/WhyNotShiny/WplaceRanking/blob/19b33a0c10b32038a4b0388188e78b1eb07e55e0/Leaderboard_files/region_leaderboard_2026-06-28.csv' },
-];
+// ── Repo config ── only edit these if you fork or rename ────
+const REPO_OWNER  = 'WhyNotShiny';
+const REPO_NAME   = 'WplaceRanking';
+const REPO_BRANCH = 'Leaderboard_files';
+// CSV files must be named exactly:  region_leaderboard_YYYY-MM-DD.csv
+const CSV_PREFIX  = 'region_leaderboard_';
 
-const snapshotCache   = new Map(); // date → parsed rows (avoids re-fetching)
-let currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest snapshot
-let loadingSnapshotIdx = -1;                    // race-condition guard
+// Populated automatically from the GitHub API on load — no manual editing needed.
+let SNAPSHOTS          = [];
+const snapshotCache    = new Map(); // date → parsed rows (avoids re-fetching)
+let currentSnapshotIdx = 0;
+let loadingSnapshotIdx = -1;        // race-condition guard
 
 // ── Map setup ─────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false, center: [25, 10], zoom: 2 });
@@ -946,13 +947,57 @@ async function loadSnapshot(idx) {
 function stepSnapshot(dir) { loadSnapshot(currentSnapshotIdx + dir); }
 function onSliderInput(val) { loadSnapshot(parseInt(val)); }
 
+// ── Discover snapshots via GitHub Contents API ────────────
+// Scans the repo root for files matching CSV_PREFIX + YYYY-MM-DD + .csv,
+// sorts them oldest → newest, and builds the SNAPSHOTS list automatically.
+// Just upload a new CSV to the repo — no code changes needed.
+async function fetchSnapshotList() {
+  const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/`;
+  const res = await fetch(apiUrl, {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) {
+    const hint = res.status === 403
+      ? 'GitHub API rate limit hit — wait a minute and reload'
+      : `GitHub API returned ${res.status}`;
+    throw new Error(hint);
+  }
+  const files = await res.json();
+  const list = files
+    .filter(f => f.type === 'file' && f.name.startsWith(CSV_PREFIX) && f.name.endsWith('.csv'))
+    .map(f => ({
+      date: f.name.slice(CSV_PREFIX.length, -4), // strip prefix + .csv → YYYY-MM-DD
+      url:  `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${f.name}`
+    }))
+    .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date)) // skip any oddly named files
+    .sort((a, b) => a.date.localeCompare(b.date));     // oldest → newest
+
+  if (!list.length)
+    throw new Error(`No files matching "${CSV_PREFIX}YYYY-MM-DD.csv" found in ${REPO_OWNER}/${REPO_NAME}`);
+  return list;
+}
+
 // ── Auto-load ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('mload').classList.remove('done');
-  // Wire up the map info pill to jump to the Info tab
+  document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
   document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
-  initSlider();
-  loadSnapshot(currentSnapshotIdx);
+
+  try {
+    SNAPSHOTS          = await fetchSnapshotList();
+    currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest
+    const n = SNAPSHOTS.length;
+    document.getElementById('load-msg').textContent =
+      `Found ${n} snapshot${n === 1 ? '' : 's'} — loading latest…`;
+    initSlider();
+    await loadSnapshot(currentSnapshotIdx);
+  } catch (err) {
+    const msg = `Error: ${err.message}`;
+    document.getElementById('load-msg').textContent  = msg;
+    document.getElementById('mload-msg').textContent = msg;
+    document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+    document.getElementById('mload').classList.add('done');
+  }
 });
 
 // ── Ingest (legacy wrapper — kept for any direct callers) ──
