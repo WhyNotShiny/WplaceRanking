@@ -589,6 +589,7 @@ kbd {
 const REPO_OWNER  = 'WhyNotShiny';
 const REPO_NAME   = 'WplaceRanking';
 const REPO_BRANCH = 'main';
+const REPO_DIR    = 'Leaderboard_files';   // sub-folder the CSVs actually live in
 // CSV files must be named exactly:  region_leaderboard_YYYY-MM-DD.csv
 const CSV_PREFIX  = 'region_leaderboard_';
 
@@ -826,10 +827,9 @@ function fmtDate(iso) {
 }
 
 function extractRepoUrl(csvUrl) {
-  // https://raw.githubusercontent.com/user/repo/branch/file → https://github.com/user/repo
-  return csvUrl
-    .replace('raw.githubusercontent.com', 'github.com')
-    .replace(/\/[^/]+\/[^/]+$/, '');
+  // Built directly from REPO_OWNER/REPO_NAME so it stays correct regardless
+  // of how many sub-folders the CSV path has.
+  return `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
 }
 
 // ── Slider init ───────────────────────────────────────────
@@ -948,17 +948,19 @@ function stepSnapshot(dir) { loadSnapshot(currentSnapshotIdx + dir); }
 function onSliderInput(val) { loadSnapshot(parseInt(val)); }
 
 // ── Discover snapshots via GitHub Contents API ────────────
-// Scans the repo root for files matching CSV_PREFIX + YYYY-MM-DD + .csv,
+// Scans REPO_OWNER/REPO_NAME/REPO_DIR for files matching CSV_PREFIX + YYYY-MM-DD + .csv,
 // sorts them oldest → newest, and builds the SNAPSHOTS list automatically.
-// Just upload a new CSV to the repo — no code changes needed.
+// Just upload a new CSV to that folder — no code changes needed.
 async function fetchSnapshotList() {
-  const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/`;
+  const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REPO_DIR}?ref=${REPO_BRANCH}`;
   const res = await fetch(apiUrl, {
     headers: { 'Accept': 'application/vnd.github.v3+json' }
   });
   if (!res.ok) {
     const hint = res.status === 403
       ? 'GitHub API rate limit hit — wait a minute and reload'
+      : res.status === 404
+      ? `Folder "${REPO_DIR}" not found in ${REPO_OWNER}/${REPO_NAME}`
       : `GitHub API returned ${res.status}`;
     throw new Error(hint);
   }
@@ -967,13 +969,13 @@ async function fetchSnapshotList() {
     .filter(f => f.type === 'file' && f.name.startsWith(CSV_PREFIX) && f.name.endsWith('.csv'))
     .map(f => ({
       date: f.name.slice(CSV_PREFIX.length, -4), // strip prefix + .csv → YYYY-MM-DD
-      url:  `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${f.name}`
+      url:  `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${f.name}`
     }))
     .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date)) // skip any oddly named files
     .sort((a, b) => a.date.localeCompare(b.date));     // oldest → newest
 
   if (!list.length)
-    throw new Error(`No files matching "${CSV_PREFIX}YYYY-MM-DD.csv" found in ${REPO_OWNER}/${REPO_NAME}`);
+    throw new Error(`No files matching "${CSV_PREFIX}YYYY-MM-DD.csv" found in ${REPO_OWNER}/${REPO_NAME}/${REPO_DIR}`);
   return list;
 }
 
