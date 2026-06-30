@@ -296,6 +296,69 @@ kbd {
 .leaflet-control-zoom a:hover { background: var(--raised) !important; color: var(--text) !important; }
 
 .filled-overlay { image-rendering: pixelated; }
+
+/* ── Date timeline slider ──────────────────────────────── */
+#date-slider-bar {
+  display: none; /* shown via .has-slider on #mwrap */
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 401;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  padding: 8px 16px 10px;
+  user-select: none;
+}
+#mwrap.has-slider #date-slider-bar { display: block; }
+#mwrap.has-slider #mlegend { bottom: 94px; }
+#mwrap.has-slider .leaflet-bottom { bottom: 84px; }
+
+.ds-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.ds-header-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+#ds-date { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
+#ds-pos  { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+
+.ds-row { display: flex; align-items: center; gap: 10px; }
+.ds-nav {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--raised);
+  color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.ds-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ds-nav:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.ds-track-wrap { flex: 1; position: relative; }
+#date-range {
+  -webkit-appearance: none; appearance: none; display: block;
+  width: 100%; height: 4px; border-radius: 2px; outline: none; cursor: pointer;
+  background: linear-gradient(to right,
+    var(--accent) 0%, var(--accent) var(--fill, 100%),
+    var(--dim)    var(--fill, 100%), var(--dim) 100%);
+}
+#date-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 2px var(--accent), 0 2px 6px rgba(0,0,0,.5);
+  transition: box-shadow .12s;
+}
+#date-range::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent), 0 2px 6px rgba(0,0,0,.5);
+}
+#date-range::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid var(--surface);
+  box-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+#date-range::-moz-range-track { height: 4px; background: transparent; }
+
+#ds-ticks { position: relative; height: 20px; margin-top: 5px; }
+.ds-tick { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.ds-tick-mark { width: 1px; height: 4px; background: var(--dim); margin-bottom: 2px; }
+.ds-tick-label { font-size: 8px; font-family: var(--mono); color: var(--dim); white-space: nowrap; }
+.ds-tick.current .ds-tick-mark { background: var(--accent); }
+.ds-tick.current .ds-tick-label { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -466,9 +529,10 @@ kbd {
       <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
       <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
       <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
+      <li><span class="istep-num">7</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
     </ol>
     <div class="info-block">
-      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus and closes popups</p>
+      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus and closes popups · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
     </div>
 
     <div class="sect"><div class="sect-title">Credits</div></div>
@@ -500,11 +564,38 @@ kbd {
     <div class="mleg-labels"><span>Low</span><span>High</span></div>
   </div>
   <div id="mload"><div class="spin"></div><span id="mload-msg">Loading…</span></div>
+
+  <!-- ── Date timeline slider (visible when SNAPSHOTS.length > 1) ── -->
+  <div id="date-slider-bar">
+    <div class="ds-header">
+      <span class="ds-header-label">Snapshot</span>
+      <span id="ds-date">—</span>
+      <span id="ds-pos"></span>
+    </div>
+    <div class="ds-row">
+      <button class="ds-nav" id="ds-prev" onclick="stepSnapshot(-1)" title="Previous date (←)">‹</button>
+      <div class="ds-track-wrap">
+        <input type="range" id="date-range" min="0" max="0" value="0" step="1" oninput="onSliderInput(this.value)">
+        <div id="ds-ticks"></div>
+      </div>
+      <button class="ds-nav" id="ds-next" onclick="stepSnapshot(1)" title="Next date (→)">›</button>
+    </div>
+  </div>
 </div>
 
 </div>
 <script>
-const CSV_URL = 'https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/region_leaderboard.csv';
+// ── Snapshots — oldest → newest (slider goes left → right) ──
+// To add a date: duplicate a line and change the date in the filename.
+// Files must follow the pattern: region_leaderboard_YYYY-MM-DD.csv
+const SNAPSHOTS = [
+  { date: '2026-06-22', url: 'https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/region_leaderboard_2026-06-22.csv' },
+  { date: '2026-06-28', url: 'https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/region_leaderboard_2026-06-28.csv' },
+];
+
+const snapshotCache   = new Map(); // date → parsed rows (avoids re-fetching)
+let currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest snapshot
+let loadingSnapshotIdx = -1;                    // race-condition guard
 
 // ── Map setup ─────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false, center: [25, 10], zoom: 2 });
@@ -726,30 +817,79 @@ function onSearch(val) { getVlist().filter(val); }
 // ── State ─────────────────────────────────────────────────
 let rowsData=[], maxPxGlobal=1, selectedRegionId=null;
 
-// ── Auto-load ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('mload').classList.remove('done');
-  fetch(CSV_URL)
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      document.getElementById('load-msg').textContent  = 'Parsing…';
-      document.getElementById('mload-msg').textContent = 'Parsing…';
-      return r.text();
-    })
-    .then(text => {
-      const {data} = Papa.parse(text, {header:true, skipEmptyLines:true});
-      ingestCSV(data);
-    })
-    .catch(err => {
-      const msg = `Error: ${err.message}`;
-      document.getElementById('load-msg').textContent  = msg;
-      document.getElementById('mload-msg').textContent = msg;
-      document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
-    });
-});
+// ── Date helpers ──────────────────────────────────────────
+function fmtDate(iso) {
+  const [y,m,d] = iso.split('-').map(Number);
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
+  return `${d} ${mon} ${y}`;
+}
 
-// ── Ingest ────────────────────────────────────────────────
-function ingestCSV(data) {
+function extractRepoUrl(csvUrl) {
+  // https://raw.githubusercontent.com/user/repo/branch/file → https://github.com/user/repo
+  return csvUrl
+    .replace('raw.githubusercontent.com', 'github.com')
+    .replace(/\/[^/]+\/[^/]+$/, '');
+}
+
+// ── Slider init ───────────────────────────────────────────
+function initSlider() {
+  const n = SNAPSHOTS.length;
+  if (n > 1) {
+    document.getElementById('mwrap').classList.add('has-slider');
+    const range = document.getElementById('date-range');
+    range.max   = n - 1;
+    range.value = currentSnapshotIdx;
+    buildSliderTicks();
+  }
+  updateSliderUI(currentSnapshotIdx);
+}
+
+function buildSliderTicks() {
+  const n = SNAPSHOTS.length;
+  const ticks = document.getElementById('ds-ticks');
+  ticks.innerHTML = '';
+  // Show at most 5 date labels; always include first & last
+  const maxLabels = Math.min(n, 5);
+  const labelSet  = new Set([0, n - 1]);
+  for (let i = 1; i < maxLabels - 1; i++) {
+    labelSet.add(Math.round(i * (n - 1) / (maxLabels - 1)));
+  }
+  for (let i = 0; i < n; i++) {
+    const pct  = n <= 1 ? 50 : (i / (n - 1)) * 100;
+    const tick = document.createElement('div');
+    tick.className = 'ds-tick' + (i === currentSnapshotIdx ? ' current' : '');
+    tick.id = `dstick-${i}`;
+    tick.style.left = `${pct}%`;
+    tick.innerHTML = labelSet.has(i)
+      ? `<div class="ds-tick-mark"></div><span class="ds-tick-label">${fmtDate(SNAPSHOTS[i].date)}</span>`
+      : `<div class="ds-tick-mark"></div>`;
+    ticks.appendChild(tick);
+  }
+}
+
+function updateSliderUI(idx) {
+  const n    = SNAPSHOTS.length;
+  const snap = SNAPSHOTS[idx];
+
+  document.getElementById('ds-date').textContent = fmtDate(snap.date);
+  document.getElementById('ds-pos').textContent  = n > 1 ? `${idx + 1} / ${n}` : '';
+  document.getElementById('minfo-date').textContent = fmtDate(snap.date);
+
+  if (n > 1) {
+    const pct = n <= 1 ? 100 : (idx / (n - 1)) * 100;
+    const range = document.getElementById('date-range');
+    range.value = idx;
+    range.style.setProperty('--fill', `${pct}%`);
+    document.getElementById('ds-prev').disabled = idx <= 0;
+    document.getElementById('ds-next').disabled = idx >= n - 1;
+    // Highlight the current tick
+    document.querySelectorAll('.ds-tick').forEach((t, i) =>
+      t.classList.toggle('current', i === idx));
+  }
+}
+
+// ── Snapshot loading ──────────────────────────────────────
+function parseCSVData(data) {
   const rows = data
     .filter(r => r.regionId)
     .map(r => ({
@@ -760,14 +900,73 @@ function ingestCSV(data) {
       url:      r.url       || ''
     }));
   for (const r of rows) r._ll = regionCoords(r.regionId);
+  return rows;
+}
+
+async function loadSnapshot(idx) {
+  if (idx < 0 || idx >= SNAPSHOTS.length) return;
+  currentSnapshotIdx = idx;
+  updateSliderUI(idx);
+
+  const snap   = SNAPSHOTS[idx];
+  const reqIdx = idx;
+  loadingSnapshotIdx = reqIdx;
+
+  // Serve from cache — no network needed
+  if (snapshotCache.has(snap.date)) {
+    rowsData = snapshotCache.get(snap.date);
+    render(rowsData, snap);
+    return;
+  }
+
+  document.getElementById('mload').classList.remove('done');
+  document.getElementById('mload-msg').textContent = `Loading ${fmtDate(snap.date)}…`;
+
+  try {
+    const res  = await fetch(snap.url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (loadingSnapshotIdx !== reqIdx) return; // a newer request overtook this one
+    const {data} = Papa.parse(text, {header:true, skipEmptyLines:true});
+    const rows = parseCSVData(data);
+    snapshotCache.set(snap.date, rows);
+    rowsData = rows;
+    render(rows, snap);
+    document.getElementById('load-bar').classList.add('done');
+    document.getElementById('mload').classList.add('done');
+  } catch(err) {
+    if (loadingSnapshotIdx !== reqIdx) return;
+    const msg = `Error: ${err.message}`;
+    document.getElementById('load-msg').textContent  = msg;
+    document.getElementById('mload-msg').textContent = msg;
+    document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+  }
+}
+
+function stepSnapshot(dir) { loadSnapshot(currentSnapshotIdx + dir); }
+function onSliderInput(val) { loadSnapshot(parseInt(val)); }
+
+// ── Auto-load ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mload').classList.remove('done');
+  // Wire up the map info pill to jump to the Info tab
+  document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
+  initSlider();
+  loadSnapshot(currentSnapshotIdx);
+});
+
+// ── Ingest (legacy wrapper — kept for any direct callers) ──
+function ingestCSV(data) {
+  const snap = SNAPSHOTS[currentSnapshotIdx];
+  const rows = parseCSVData(data);
   rowsData = rows;
-  render(rows);
+  render(rows, snap);
   document.getElementById('load-bar').classList.add('done');
   document.getElementById('mload').classList.add('done');
 }
 
 // ── Render ────────────────────────────────────────────────
-function render(rows) {
+function render(rows, snap) {
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
   maxPxGlobal = maxPx;
@@ -776,6 +975,20 @@ function render(rows) {
   numEl.classList.remove('idle');
   animCount(numEl, totalPx);
   document.getElementById('minfo-count').textContent = `${rows.length.toLocaleString()} regions`;
+
+  // ── Date & Info panel ──────────────────────────────────
+  if (snap) {
+    const dateStr  = fmtDate(snap.date);
+    const filename = snap.url.split('/').pop();
+    const repoUrl  = extractRepoUrl(snap.url);
+
+    document.getElementById('minfo-date').textContent    = dateStr;
+    document.getElementById('info-refdate').textContent  = dateStr;
+    document.getElementById('info-reffile').textContent  = filename;
+    document.getElementById('info-csvlink').href         = snap.url;
+    document.getElementById('info-repolink').href        = repoUrl;
+    document.getElementById('info-creditlink').href      = repoUrl;
+  }
 
   renderStats(rows, totalPx, maxPx);
   setFilledOverlay(buildOffscreen(rows, maxPx).toDataURL());
@@ -965,6 +1178,9 @@ document.addEventListener('keydown', e => {
   } else if (e.key === 'Escape') {
     search.blur();
     map.closePopup();
+  } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement !== search && SNAPSHOTS.length > 1) {
+    e.preventDefault();
+    stepSnapshot(e.key === 'ArrowLeft' ? -1 : 1);
   }
 });
 
