@@ -99,12 +99,13 @@ aside.folded #resize-handle { display: none; }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab-btn svg { flex-shrink: 0; }
 
-/* Tab panels — list uses flex-column for virtual scroll; stats scrolls itself */
+/* Tab panels — list uses flex-column for virtual scroll; stats/info scroll themselves */
 .tab-panel { display: none; }
 #panel-list.active  { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-#panel-stats.active { display: block; flex: 1; overflow-y: auto; }
-#panel-stats::-webkit-scrollbar { width: 3px; }
-#panel-stats::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#panel-stats.active,
+#panel-info.active  { display: block; flex: 1; overflow-y: auto; }
+#panel-stats::-webkit-scrollbar, #panel-info::-webkit-scrollbar { width: 3px; }
+#panel-stats::-webkit-scrollbar-thumb, #panel-info::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
 
 /* ── Sort bar ────────────────────────────────────────────── */
 #sort-bar {
@@ -125,7 +126,7 @@ aside.folded #resize-handle { display: none; }
 /* Column labels */
 #col-heads {
   display: flex; align-items: center; gap: 5px;
-  padding: 0 10px 0 12px; height: 24px;
+  padding: 0 10px 0 10px; height: 24px;
   background: color-mix(in srgb, var(--raised) 60%, transparent);
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
@@ -211,17 +212,43 @@ aside.folded #resize-handle { display: none; }
   white-space: nowrap; z-index: 20; pointer-events: none;
 }
 
+/* ── Info tab ────────────────────────────────────────────── */
+.info-block { padding: 0 12px 14px; font-size: 11.5px; line-height: 1.65; color: #9aa3b5; }
+.info-block a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.info-block a:hover { border-bottom-color: var(--accent); }
+.info-steps { list-style: none; padding: 0 12px 4px; display: flex; flex-direction: column; gap: 10px; }
+.info-steps li { display: flex; gap: 9px; font-size: 11.5px; color: #9aa3b5; line-height: 1.55; }
+.istep-num {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px; margin-top: 1px;
+  background: var(--raised); border: 1px solid var(--border); color: var(--accent);
+  font-family: var(--mono); font-size: 9px; display: flex; align-items: center; justify-content: center;
+}
+kbd {
+  font-family: var(--mono); font-size: 9.5px; color: var(--text);
+  background: var(--raised); border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: 4px; padding: 1px 5px;
+}
+.credit-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid #0d1117; }
+.credit-row:last-child { border-bottom: none; }
+.credit-role { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+.credit-name { font-size: 11px; color: #9aa3b5; }
+.credit-name a { color: var(--accent); text-decoration: none; }
+.credit-name a:hover { text-decoration: underline; }
+
 /* ── Map ─────────────────────────────────────────────────── */
 #mwrap { flex: 1; position: relative; background: var(--bg); }
 #map { width: 100%; height: 100%; background: var(--bg); }
 
 #minfo-pill {
   position: absolute; top: 14px; right: 14px; z-index: 400;
-  font-family: var(--mono); font-size: 11px; color: var(--muted);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(8px); border: 1px solid var(--border);
-  border-radius: 7px; padding: 5px 11px;
+  border-radius: 7px; padding: 6px 12px; text-align: right;
+  cursor: pointer; transition: border-color .15s, background .15s;
 }
+#minfo-pill:hover { border-color: var(--muted); }
+#minfo-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+#minfo-date  { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 2px; }
 
 /* Gradient legend */
 #mlegend {
@@ -308,6 +335,12 @@ aside.folded #resize-handle { display: none; }
       </svg>
       Stats
     </button>
+    <button class="tab-btn" data-tab="info" onclick="switchTab('info')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.3"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor" stroke="none"/>
+      </svg>
+      Info
+    </button>
   </div>
 
   <!-- ── Leaderboard panel ── -->
@@ -320,11 +353,11 @@ aside.folded #resize-handle { display: none; }
     </div>
 
     <div id="col-heads">
-      <span class="col-h" style="width:18px;text-align:right">Rk</span>
-      <span class="col-h" style="width:44px;text-align:right">ID</span>
+      <span class="col-h" style="width:36px;text-align:right">Rk</span>
+      <span class="col-h" style="width:54px;text-align:right">ID</span>
       <span class="col-h" style="flex:1;padding-left:4px">Name</span>
-      <span style="width:28px"></span>
-      <span class="col-h" style="width:42px;text-align:right">Pixels</span>
+      <span style="width:26px"></span>
+      <span class="col-h" style="width:50px;text-align:right">Pixels</span>
       <span style="width:20px"></span>
     </div>
 
@@ -409,6 +442,47 @@ aside.folded #resize-handle { display: none; }
     <div style="height:8px"></div>
 
   </div>
+
+  <!-- ── Info panel ── -->
+  <div id="panel-info" class="tab-panel">
+
+    <div class="sect"><div class="sect-title">Data Source</div></div>
+    <div class="scard-grid">
+      <div class="scard wide">
+        <div class="sl">Reference Snapshot</div>
+        <div class="sv accent" id="info-refdate">—</div>
+        <div class="sd" id="info-reffile">—</div>
+      </div>
+    </div>
+    <div class="info-block">
+      <p><a id="info-csvlink" href="#" target="_blank" rel="noopener">View raw CSV ↗</a><span id="info-repolink-wrap"> · <a id="info-repolink" href="#" target="_blank" rel="noopener">View repository ↗</a></span></p>
+    </div>
+
+    <div class="sect"><div class="sect-title">How To Use</div></div>
+    <ol class="info-steps">
+      <li><span class="istep-num">1</span><span>Click any cell on the map — the hit area scales with zoom, so corners still register when you're zoomed in close.</span></li>
+      <li><span class="istep-num">2</span><span>Search by name or region ID, or sort by rank / region ID using the chips above the list.</span></li>
+      <li><span class="istep-num">3</span><span>Click a row (or its ↗ button) to fly there and highlight it in the list — clicking the map does the same in reverse.</span></li>
+      <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
+      <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
+      <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
+    </ol>
+    <div class="info-block">
+      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus and closes popups</p>
+    </div>
+
+    <div class="sect"><div class="sect-title">Credits</div></div>
+    <div class="info-block" style="padding-bottom:2px;">
+      <div class="credit-row"><span class="credit-role">Dataset &amp; Aggregation</span><span class="credit-name"><a id="info-creditlink" href="#" target="_blank" rel="noopener">WhyNotShiny/WplaceRanking</a></span></div>
+      <div class="credit-row"><span class="credit-role">Map Tiles</span><span class="credit-name">CARTO · OpenStreetMap</span></div>
+      <div class="credit-row"><span class="credit-role">Libraries</span><span class="credit-name">Leaflet · PapaParse</span></div>
+    </div>
+    <div class="info-block">
+      <p style="color:var(--dim);font-size:10.5px;">Unofficial fan-made dashboard — not affiliated with wplace.live.</p>
+    </div>
+    <div style="height:10px"></div>
+
+  </div>
   <div id="resize-handle"></div>
 </aside>
 
@@ -417,7 +491,10 @@ aside.folded #resize-handle { display: none; }
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
   <div id="map"></div>
-  <div id="minfo-pill">— regions</div>
+  <div id="minfo-pill" title="Click for data source & info">
+    <div id="minfo-count">— regions</div>
+    <div id="minfo-date">—</div>
+  </div>
   <div id="mlegend">
     <div id="mlegend-bar"></div>
     <div class="mleg-labels"><span>Low</span><span>High</span></div>
@@ -524,6 +601,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('panel-list').classList.toggle('active', tab==='list');
   document.getElementById('panel-stats').classList.toggle('active', tab==='stats');
+  document.getElementById('panel-info').classList.toggle('active', tab==='info');
 }
 
 // ── Sort ──────────────────────────────────────────────────
@@ -561,7 +639,7 @@ function applySort(rows) {
 
 // ── Virtual list ──────────────────────────────────────────
 class VirtualList {
-  constructor(container, itemH=34) {
+  constructor(container, itemH=36) {
     this._el=container; this._ih=itemH;
     this._all=[]; this._rows=[]; this._mx=1; this._key=null;
     const sp=document.createElement('div');
@@ -598,7 +676,7 @@ class VirtualList {
     const viewH=el.clientHeight||400, top=el.scrollTop;
     const start=Math.max(0,Math.floor(top/ih)-10);
     const end=Math.min(n,start+Math.ceil(viewH/ih)+15);
-    const key=`${start}:${end}:${n}`;
+    const key=`${start}:${end}:${n}:${selectedRegionId}`;
     if (key===this._key) return;
     this._key=key;
     inn.style.transform=`translateY(${start*ih}px)`;
@@ -606,7 +684,12 @@ class VirtualList {
     for (let i=start;i<end;i++) {
       const r=rows[i];
       const div=document.createElement('div');
-      div.className='li';
+      let cls='li';
+      if (r.rank===1) cls+=' rank-gold';
+      else if (r.rank===2) cls+=' rank-silver';
+      else if (r.rank===3) cls+=' rank-bronze';
+      if (r.regionId===selectedRegionId) cls+=' selected';
+      div.className=cls;
       const pct=mx>0?(r.pixels/mx*100).toFixed(1):0;
       div.innerHTML=
         `<span class="lrank">${r.rank}</span>`+
@@ -616,10 +699,20 @@ class VirtualList {
         `<span class="lval">${fmt(r.pixels)}</span>`+
         `<button class="lgo" title="Fly to region">↗</button>`;
       const cap=r;
-      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();flyTo(cap);});
+      div.addEventListener('click', ()=>selectRegion(cap));
+      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectRegion(cap);});
       frag.appendChild(div);
     }
     inn.replaceChildren(frag);
+  }
+
+  scrollToRegion(regionId) {
+    const idx=this._rows.findIndex(r=>r.regionId===regionId);
+    if (idx<0) return;
+    const target=idx*this._ih, viewH=this._el.clientHeight||400, cur=this._el.scrollTop;
+    if (target<cur || target>cur+viewH-this._ih) {
+      this._el.scrollTop=Math.max(0, target-viewH/2+this._ih/2);
+    }
   }
 }
 
@@ -631,7 +724,7 @@ function getVlist() {
 function onSearch(val) { getVlist().filter(val); }
 
 // ── State ─────────────────────────────────────────────────
-let rowsData=[], maxPxGlobal=1;
+let rowsData=[], maxPxGlobal=1, selectedRegionId=null;
 
 // ── Auto-load ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -682,7 +775,7 @@ function render(rows) {
   const numEl = document.getElementById('big-num');
   numEl.classList.remove('idle');
   animCount(numEl, totalPx);
-  document.getElementById('minfo-pill').textContent = `${rows.length.toLocaleString()} regions`;
+  document.getElementById('minfo-count').textContent = `${rows.length.toLocaleString()} regions`;
 
   renderStats(rows, totalPx, maxPx);
   setFilledOverlay(buildOffscreen(rows, maxPx).toDataURL());
@@ -771,6 +864,17 @@ function flyTo(r) {
       <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
     </div>`).openOn(map);
+}
+
+// ── Selection — keeps map clicks and list clicks in sync ──
+function selectRegion(r, scroll) {
+  selectedRegionId = r.regionId;
+  flyTo(r);
+  if (vlist) {
+    vlist._key = null;
+    vlist._paint();
+    if (scroll) vlist.scrollToRegion(r.regionId);
+  }
 }
 
 // ── Map click — find nearest region (adaptive hit-radius) ─
