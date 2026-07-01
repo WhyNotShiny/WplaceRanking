@@ -990,20 +990,34 @@ function parseCSVData(data) {
   return rows;
 }
 
-function papaParseUrl(url) {
-  return new Promise((resolve, reject) => {
-    Papa.parse(url, {
-      download: true,
-      worker: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: results => resolve(results.data),
-      error: err => {
-        const status = err && err.status;
-        reject(new Error(status ? `HTTP ${status}` : (err && err.statusText) || 'Network error'));
-      }
-    });
-  });
+// ── Streaming CSV download with progress ─────────────────────────────────────
+// PapaParse's worker:true + download:true cannot spawn a worker from a CDN
+// script URL when served over HTTPS (strict same-origin Web Worker rule).
+// We use the Fetch API instead — the download is fully async and non-blocking;
+// the ~0.5s main-thread parse that follows is covered by the "Parsing…" notice.
+async function fetchCSV(url, onProgress) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText || 'fetch failed'} (${url})`);
+
+  // Stream the body so we can report download progress
+  const total  = +res.headers.get('content-length') || 0;
+  const reader = res.body.getReader();
+  const chunks = [];
+  let   received = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (total && onProgress) onProgress(received / total);
+  }
+
+  // Concatenate all Uint8Array chunks into one string
+  const merged = new Uint8Array(received);
+  let   offset = 0;
+  for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+  return new TextDecoder().decode(merged);
 }
 
 async function loadSnapshot(idx) {
@@ -1015,23 +1029,36 @@ async function loadSnapshot(idx) {
   const reqIdx = idx;
   loadingSnapshotIdx = reqIdx;
 
-  // Serve from cache — no network needed
+  // Serve from cache — no re-download needed
   if (snapshotCache.has(snap.date)) {
     rowsData = snapshotCache.get(snap.date);
     render(rowsData, snap);
     return;
   }
 
+  const msgEl  = document.getElementById('mload-msg');
+  const barEl  = document.getElementById('load-bar');
   document.getElementById('mload').classList.remove('done');
-  document.getElementById('mload-msg').textContent = `Loading ${fmtDate(snap.date)}…`;
+  msgEl.textContent = `Downloading ${fmtDate(snap.date)}… 0%`;
 
   try {
-    // download:true + worker:true fetches AND parses off the main thread,
-    // so the UI never freezes while a ~24MB snapshot loads.
-    const data = await papaParseUrl(snap.url);
-    if (loadingSnapshotIdx !== reqIdx) return; // a newer request overtook this one
+    const csvText = await fetchCSV(snap.url, pct => {
+      if (loadingSnapshotIdx !== reqIdx) return;
+      msgEl.textContent = `Downloading ${fmtDate(snap.date)}… ${Math.round(pct*100)}%`;
+    });
+
+    if (loadingSnapshotIdx !== reqIdx) return; // a newer click overtook this one
+
+    msgEl.textContent = `Parsing…`;
+    // yield one frame so the browser paints "Parsing…" before the sync parse
+    await new Promise(r => requestAnimationFrame(r));
+
+    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    if (loadingSnapshotIdx !== reqIdx) return;
+
     const rows = parseCSVData(data);
     if (!rows.length) throw new Error('CSV parsed but contained no valid rows');
+
     snapshotCache.set(snap.date, rows);
     rowsData = rows;
     render(rows, snap);
@@ -1041,8 +1068,8 @@ async function loadSnapshot(idx) {
     if (loadingSnapshotIdx !== reqIdx) return;
     const msg = `Error: ${err.message}`;
     document.getElementById('load-msg').textContent  = msg;
-    document.getElementById('mload-msg').textContent = msg;
-    document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+    msgEl.textContent = msg;
+    barEl.style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
   }
 }
 
