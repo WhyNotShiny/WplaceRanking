@@ -87,6 +87,15 @@ aside.folded #resize-handle { display: none; }
 #load-bar .spin { width: 12px; height: 12px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
 #load-msg { font-size: 11px; color: var(--muted); }
 
+/* Country rows in stats tab */
+.cty-row { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 6px; background: var(--raised); border: 1px solid var(--border); }
+.cty-rank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 14px; text-align: right; flex-shrink: 0; }
+.cty-flag { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; line-height: 1; }
+.cty-name { font-size: 11px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cty-bar-w { width: 44px; flex-shrink: 0; }
+.cty-bar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.55; }
+.cty-val { font-family: var(--mono); font-size: 10px; color: var(--cyan); width: 42px; text-align: right; flex-shrink: 0; }
+.cty-cnt { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 38px; text-align: right; flex-shrink: 0; }
 /* Tab bar */
 #tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .tab-btn {
@@ -145,11 +154,25 @@ aside.folded #resize-handle { display: none; }
 #searchinput::placeholder { color: var(--muted); }
 #srcount { font-size: 10px; color: var(--dim); padding: 2px 12px 4px; flex-shrink: 0; min-height: 16px; }
 
+/* View toggle */
+#view-toggle { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.vtog { flex: 1; padding: 7px 8px; font-size: 11px; font-weight: 500; font-family: var(--font); color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+.vtog:hover { color: var(--text); }
+.vtog.on { color: var(--accent); border-bottom-color: var(--accent); }
 /* Virtual scroll area */
 #lscroll { flex: 1; position: relative; overflow: hidden; }
 #lr-panel { position: absolute; inset: 0; overflow-y: auto; }
 #lr-panel::-webkit-scrollbar { width: 3px; }
 #lr-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#lc-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
+#lc-panel::-webkit-scrollbar { width: 3px; }
+#lc-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+.cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid #0a0d13; transition: background .1s; }
+.cty-lb-row:hover { background: var(--raised); }
+/* Country region-count chip — size to content, never clip */
+.cty-reg-cnt { font-family: var(--mono); font-size: 9px; color: var(--dim); white-space: nowrap; flex-shrink: 0; text-align: right; padding-left: 4px; }
+/* Country sort bar — same look as the regions sort bar */
+#cty-sort-bar { display: none; align-items: center; gap: 5px; flex-wrap: wrap; padding: 7px 12px 6px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 
 /* List items */
 .li {
@@ -453,10 +476,21 @@ kbd {
   <!-- ── Leaderboard panel ── -->
   <div id="panel-list" class="tab-panel active">
 
+    <div id="view-toggle">
+      <button class="vtog on" id="vtog-regions"   onclick="setView('regions')">Regions</button>
+      <button class="vtog"    id="vtog-countries"  onclick="setView('countries')">Countries</button>
+    </div>
+
     <div id="sort-bar">
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-key="rank" onclick="setSort('rank')">Rank <span class="arr">▼</span></button>
       <button class="sort-chip" data-key="id" onclick="setSort('id')">Region ID <span class="arr"></span></button>
+    </div>
+
+    <div id="cty-sort-bar">
+      <span class="sort-label">Sort</span>
+      <button class="sort-chip active" data-cty="px" onclick="setCtySort('px')">Pixels <span class="arr">▼</span></button>
+      <button class="sort-chip" data-cty="n" onclick="setCtySort('n')">Regions <span class="arr"></span></button>
     </div>
 
     <div id="col-heads">
@@ -473,12 +507,13 @@ kbd {
       <svg id="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
-      <input id="searchinput" type="text" placeholder="Search name or region ID…" oninput="onSearch(this.value)">
+      <input id="searchinput" type="text" placeholder="Search name, ID or country…" oninput="onSearch(this.value)">
     </div>
     <div id="srcount"></div>
 
     <div id="lscroll">
       <div id="lr-panel"></div>
+      <div id="lc-panel"></div>
     </div>
   </div>
 
@@ -545,6 +580,36 @@ kbd {
         <div class="sl">P90 · 90th Percentile</div>
         <div class="sv accent" id="st-p90">—</div>
         <div class="sd">top decile floor</div>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+
+    <div class="sect"><div class="sect-title">Country Stats</div></div>
+    <div class="scard-grid">
+      <div class="scard">
+        <div class="sl">Active Countries</div>
+        <div class="sv accent" id="st-cty-count">—</div>
+        <div class="sd">with painted regions</div>
+      </div>
+      <div class="scard">
+        <div class="sl">Avg Regions / Country</div>
+        <div class="sv green" id="st-cty-avg-reg">—</div>
+        <div class="sd">mean active regions</div>
+      </div>
+      <div class="scard wide">
+        <div class="sl">Top Country by Pixels</div>
+        <div class="sv" id="st-cty-top-px">—</div>
+        <div class="sd" id="st-cty-top-px-name">—</div>
+      </div>
+      <div class="scard wide">
+        <div class="sl">Most Regions in a Country</div>
+        <div class="sv" id="st-cty-top-reg">—</div>
+        <div class="sd" id="st-cty-top-reg-name">—</div>
+      </div>
+      <div class="scard wide">
+        <div class="sl">Avg Pixels / Active Country</div>
+        <div class="sv orange" id="st-cty-avg-px">—</div>
+        <div class="sd">total pixels ÷ active countries</div>
       </div>
     </div>
     <div style="height:8px"></div>
@@ -631,6 +696,36 @@ kbd {
 
 </div>
 <script>
+// ── Country mapping (ID→name+ISO, alphabetical ISO 3166-1 order) ────────
+const CM={1:{n:"Afghanistan",c:"AF"},2:{n:"Albania",c:"AL"},3:{n:"Algeria",c:"DZ"},4:{n:"American Samoa",c:"AS"},5:{n:"Andorra",c:"AD"},6:{n:"Angola",c:"AO"},7:{n:"Anguilla",c:"AI"},8:{n:"Antarctica",c:"AQ"},9:{n:"Antigua & Barbuda",c:"AG"},
+10:{n:"Argentina",c:"AR"},11:{n:"Armenia",c:"AM"},12:{n:"Aruba",c:"AW"},13:{n:"Australia",c:"AU"},14:{n:"Austria",c:"AT"},15:{n:"Azerbaijan",c:"AZ"},16:{n:"Bahamas",c:"BS"},17:{n:"Bahrain",c:"BH"},18:{n:"Bangladesh",c:"BD"},19:{n:"Barbados",c:"BB"},
+20:{n:"Belarus",c:"BY"},21:{n:"Belgium",c:"BE"},22:{n:"Belize",c:"BZ"},23:{n:"Benin",c:"BJ"},24:{n:"Bermuda",c:"BM"},25:{n:"Bhutan",c:"BT"},26:{n:"Bolivia",c:"BO"},27:{n:"Bonaire",c:"BQ"},28:{n:"Bosnia & Herzegovina",c:"BA"},29:{n:"Botswana",c:"BW"},
+30:{n:"Bouvet Island",c:"BV"},31:{n:"Brazil",c:"BR"},32:{n:"British Indian Ocean Territory",c:"IO"},33:{n:"Brunei",c:"BN"},34:{n:"Bulgaria",c:"BG"},35:{n:"Burkina Faso",c:"BF"},36:{n:"Burundi",c:"BI"},37:{n:"Cabo Verde",c:"CV"},38:{n:"Cambodia",c:"KH"},39:{n:"Cameroon",c:"CM"},
+40:{n:"Canada",c:"CA"},41:{n:"Cayman Islands",c:"KY"},42:{n:"Central African Republic",c:"CF"},43:{n:"Chad",c:"TD"},44:{n:"Chile",c:"CL"},45:{n:"China",c:"CN"},46:{n:"Christmas Island",c:"CX"},47:{n:"Cocos Islands",c:"CC"},48:{n:"Colombia",c:"CO"},49:{n:"Comoros",c:"KM"},
+50:{n:"Congo",c:"CG"},51:{n:"Cook Islands",c:"CK"},52:{n:"Costa Rica",c:"CR"},53:{n:"Croatia",c:"HR"},54:{n:"Cuba",c:"CU"},55:{n:"Cura\u00e7ao",c:"CW"},56:{n:"Cyprus",c:"CY"},57:{n:"Czechia",c:"CZ"},58:{n:"C\u00f4te d'Ivoire",c:"CI"},59:{n:"Denmark",c:"DK"},
+60:{n:"Djibouti",c:"DJ"},61:{n:"Dominica",c:"DM"},62:{n:"Dominican Republic",c:"DO"},63:{n:"Ecuador",c:"EC"},64:{n:"Egypt",c:"EG"},65:{n:"El Salvador",c:"SV"},66:{n:"Equatorial Guinea",c:"GQ"},67:{n:"Eritrea",c:"ER"},68:{n:"Estonia",c:"EE"},69:{n:"Eswatini",c:"SZ"},
+70:{n:"Ethiopia",c:"ET"},71:{n:"Falkland Islands",c:"FK"},72:{n:"Faroe Islands",c:"FO"},73:{n:"Fiji",c:"FJ"},74:{n:"Finland",c:"FI"},75:{n:"France",c:"FR"},76:{n:"French Guiana",c:"GF"},77:{n:"French Polynesia",c:"PF"},78:{n:"French Southern Territories",c:"TF"},79:{n:"Gabon",c:"GA"},
+80:{n:"Gambia",c:"GM"},81:{n:"Georgia",c:"GE"},82:{n:"Germany",c:"DE"},83:{n:"Ghana",c:"GH"},84:{n:"Gibraltar",c:"GI"},85:{n:"Greece",c:"GR"},86:{n:"Greenland",c:"GL"},87:{n:"Grenada",c:"GD"},88:{n:"Guadeloupe",c:"GP"},89:{n:"Guam",c:"GU"},
+90:{n:"Guatemala",c:"GT"},91:{n:"Guernsey",c:"GG"},92:{n:"Guinea",c:"GN"},93:{n:"Guinea-Bissau",c:"GW"},94:{n:"Guyana",c:"GY"},95:{n:"Haiti",c:"HT"},96:{n:"Heard & McDonald Islands",c:"HM"},97:{n:"Honduras",c:"HN"},98:{n:"Hong Kong",c:"HK"},99:{n:"Hungary",c:"HU"},
+100:{n:"Iceland",c:"IS"},101:{n:"India",c:"IN"},102:{n:"Indonesia",c:"ID"},103:{n:"Iran",c:"IR"},104:{n:"Iraq",c:"IQ"},105:{n:"Ireland",c:"IE"},106:{n:"Isle of Man",c:"IM"},107:{n:"Israel",c:"IL"},108:{n:"Italy",c:"IT"},109:{n:"Jamaica",c:"JM"},
+110:{n:"Japan",c:"JP"},111:{n:"Jersey",c:"JE"},112:{n:"Jordan",c:"JO"},113:{n:"Kazakhstan",c:"KZ"},114:{n:"Kenya",c:"KE"},115:{n:"Kiribati",c:"KI"},116:{n:"Kosovo",c:"XK"},117:{n:"Kuwait",c:"KW"},118:{n:"Kyrgyzstan",c:"KG"},119:{n:"Laos",c:"LA"},
+120:{n:"Latvia",c:"LV"},121:{n:"Lebanon",c:"LB"},122:{n:"Lesotho",c:"LS"},123:{n:"Liberia",c:"LR"},124:{n:"Libya",c:"LY"},125:{n:"Liechtenstein",c:"LI"},126:{n:"Lithuania",c:"LT"},127:{n:"Luxembourg",c:"LU"},128:{n:"Macau",c:"MO"},129:{n:"Madagascar",c:"MG"},
+130:{n:"Malawi",c:"MW"},131:{n:"Malaysia",c:"MY"},132:{n:"Maldives",c:"MV"},133:{n:"Mali",c:"ML"},134:{n:"Malta",c:"MT"},135:{n:"Marshall Islands",c:"MH"},136:{n:"Martinique",c:"MQ"},137:{n:"Mauritania",c:"MR"},138:{n:"Mauritius",c:"MU"},139:{n:"Mayotte",c:"YT"},
+140:{n:"Mexico",c:"MX"},141:{n:"Micronesia",c:"FM"},142:{n:"Moldova",c:"MD"},143:{n:"Monaco",c:"MC"},144:{n:"Mongolia",c:"MN"},145:{n:"Montenegro",c:"ME"},146:{n:"Montserrat",c:"MS"},147:{n:"Morocco",c:"MA"},148:{n:"Mozambique",c:"MZ"},149:{n:"Myanmar",c:"MM"},
+150:{n:"Namibia",c:"NA"},151:{n:"Nauru",c:"NR"},152:{n:"Nepal",c:"NP"},153:{n:"Netherlands",c:"NL"},154:{n:"New Caledonia",c:"NC"},155:{n:"New Zealand",c:"NZ"},156:{n:"Nicaragua",c:"NI"},157:{n:"Niger",c:"NE"},158:{n:"Nigeria",c:"NG"},159:{n:"Niue",c:"NU"},
+160:{n:"Norfolk Island",c:"NF"},161:{n:"North Korea",c:"KP"},162:{n:"North Macedonia",c:"MK"},163:{n:"Northern Mariana Islands",c:"MP"},164:{n:"Norway",c:"NO"},165:{n:"Oman",c:"OM"},166:{n:"Pakistan",c:"PK"},167:{n:"Palau",c:"PW"},168:{n:"Palestine",c:"PS"},169:{n:"Panama",c:"PA"},
+170:{n:"Papua New Guinea",c:"PG"},171:{n:"Paraguay",c:"PY"},172:{n:"Peru",c:"PE"},173:{n:"Philippines",c:"PH"},174:{n:"Pitcairn Islands",c:"PN"},175:{n:"Poland",c:"PL"},176:{n:"Portugal",c:"PT"},177:{n:"Puerto Rico",c:"PR"},178:{n:"Qatar",c:"QA"},179:{n:"DR Congo",c:"CD"},
+180:{n:"Romania",c:"RO"},181:{n:"Russia",c:"RU"},182:{n:"Rwanda",c:"RW"},183:{n:"R\u00e9union",c:"RE"},184:{n:"Saint Barth\u00e9lemy",c:"BL"},185:{n:"Saint Helena",c:"SH"},186:{n:"Saint Kitts & Nevis",c:"KN"},187:{n:"Saint Lucia",c:"LC"},188:{n:"Saint Martin",c:"MF"},189:{n:"Saint Pierre & Miquelon",c:"PM"},
+190:{n:"Saint Vincent & Grenadines",c:"VC"},191:{n:"Samoa",c:"WS"},192:{n:"San Marino",c:"SM"},193:{n:"S\u00e3o Tom\u00e9 & Pr\u00edncipe",c:"ST"},194:{n:"Saudi Arabia",c:"SA"},195:{n:"Senegal",c:"SN"},196:{n:"Serbia",c:"RS"},197:{n:"Seychelles",c:"SC"},198:{n:"Sierra Leone",c:"SL"},199:{n:"Singapore",c:"SG"},
+200:{n:"Sint Maarten",c:"SX"},201:{n:"Slovakia",c:"SK"},202:{n:"Slovenia",c:"SI"},203:{n:"Solomon Islands",c:"SB"},204:{n:"Somalia",c:"SO"},205:{n:"South Africa",c:"ZA"},206:{n:"South Georgia",c:"GS"},207:{n:"South Korea",c:"KR"},208:{n:"South Sudan",c:"SS"},209:{n:"Spain",c:"ES"},
+210:{n:"Sri Lanka",c:"LK"},211:{n:"Sudan",c:"SD"},212:{n:"Suriname",c:"SR"},213:{n:"Svalbard",c:"SJ"},214:{n:"Sweden",c:"SE"},215:{n:"Switzerland",c:"CH"},216:{n:"Syria",c:"SY"},217:{n:"Taiwan",c:"TW"},218:{n:"Tajikistan",c:"TJ"},219:{n:"Tanzania",c:"TZ"},
+220:{n:"Thailand",c:"TH"},221:{n:"Timor-Leste",c:"TL"},222:{n:"Togo",c:"TG"},223:{n:"Tokelau",c:"TK"},224:{n:"Tonga",c:"TO"},225:{n:"Trinidad & Tobago",c:"TT"},226:{n:"Tunisia",c:"TN"},227:{n:"Turkmenistan",c:"TM"},228:{n:"Turks & Caicos Islands",c:"TC"},229:{n:"Tuvalu",c:"TV"},
+230:{n:"Turkey",c:"TR"},231:{n:"Uganda",c:"UG"},232:{n:"Ukraine",c:"UA"},233:{n:"United Arab Emirates",c:"AE"},234:{n:"United Kingdom",c:"GB"},235:{n:"United States",c:"US"},236:{n:"US Minor Outlying Islands",c:"UM"},237:{n:"Uruguay",c:"UY"},238:{n:"Uzbekistan",c:"UZ"},239:{n:"Vanuatu",c:"VU"},
+240:{n:"Vatican City",c:"VA"},241:{n:"Venezuela",c:"VE"},242:{n:"Vietnam",c:"VN"},243:{n:"British Virgin Islands",c:"VG"},244:{n:"US Virgin Islands",c:"VI"},245:{n:"Wallis & Futuna",c:"WF"},246:{n:"Western Sahara",c:"EH"},247:{n:"Yemen",c:"YE"},248:{n:"Zambia",c:"ZM"},249:{n:"Zimbabwe",c:"ZW"},
+250:{n:"\u00c5land Islands",c:"AX"}};
+function cFlag(id){const e=CM[id];if(!e)return"";return[...e.c].map(ch=>String.fromCodePoint(0x1F1E6+ch.charCodeAt(0)-65)).join("");}
+function cName(id){return CM[id]?.n||"";}
+
 // ── Repo config ── only edit these if you fork or rename ────
 const REPO_OWNER  = 'WhyNotShiny';
 const REPO_NAME   = 'WplaceRanking';
@@ -782,6 +877,41 @@ let sortKey = 'rank', sortDir = 'asc';
 // Default direction when a column is first clicked
 const SORT_DEFAULTS = { rank: 'asc', id: 'asc' };
 
+let currentView = 'regions';
+let ctySortKey = 'px', ctySortDir = 'desc';
+
+function setCtySort(key) {
+  // Same key → toggle direction; new key → default to descending
+  ctySortDir = (ctySortKey === key) ? (ctySortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+  ctySortKey = key;
+  updateCtySortUI();
+  filterCountriesView(document.getElementById('searchinput').value);
+}
+
+function updateCtySortUI() {
+  document.querySelectorAll('[data-cty]').forEach(chip => {
+    const isActive = chip.dataset.cty === ctySortKey;
+    chip.classList.toggle('active', isActive);
+    chip.querySelector('.arr').textContent = isActive ? (ctySortDir === 'asc' ? '▲' : '▼') : '';
+  });
+}
+function setView(v) {
+  currentView = v;
+  const isC = v === 'countries';
+  document.getElementById('vtog-regions').classList.toggle('on', !isC);
+  document.getElementById('vtog-countries').classList.toggle('on', isC);
+  document.getElementById('sort-bar').style.display     = isC ? 'none' : '';
+  document.getElementById('cty-sort-bar').style.display = isC ? 'flex' : 'none';
+  document.getElementById('col-heads').style.display  = isC ? 'none' : '';
+  document.getElementById('lr-panel').style.display   = isC ? 'none' : '';
+  document.getElementById('lc-panel').style.display   = isC ? 'block' : 'none';
+  const si = document.getElementById('searchinput');
+  si.value = '';
+  si.placeholder = isC ? 'Search country…' : 'Search name, ID or country…';
+  document.getElementById('srcount').textContent = '';
+  if (isC) filterCountriesView(''); else { if (vlist) vlist.filter(''); }
+}
+
 function setSort(key) {
   sortDir = (sortKey === key) ? (sortDir==='asc' ? 'desc' : 'asc') : SORT_DEFAULTS[key];
   sortKey = key;
@@ -833,7 +963,7 @@ class VirtualList {
 
   filter(q) {
     const s=q.trim().toLowerCase();
-    this._rows=s ? this._all.filter(r=>r.name.toLowerCase().includes(s)||String(r.regionId).includes(s)) : this._all;
+    this._rows=s ? this._all.filter(r=>r.name.toLowerCase().includes(s)||String(r.regionId).includes(s)||cName(r.countryId).toLowerCase().includes(s)) : this._all;
     this._el.scrollTop=0; this._key=null;
     this._paint();
     const n=this._rows.length, tot=this._all.length;
@@ -867,7 +997,7 @@ class VirtualList {
       div.innerHTML=
         `<span class="lrank">${r.rank}</span>`+
         `<span class="lid">#${r.regionId}</span>`+
-        `<span class="lname" title="${r.name}">${r.name}</span>`+
+        `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${r.countryId?cFlag(r.countryId)+" ":""}${r.name}</span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
@@ -899,7 +1029,10 @@ function getVlist() {
 let searchDebounceT = null;
 function onSearch(val) {
   clearTimeout(searchDebounceT);
-  searchDebounceT = setTimeout(() => getVlist().filter(val), 100);
+  searchDebounceT = setTimeout(() => {
+    if (currentView === 'countries') filterCountriesView(val);
+    else getVlist().filter(val);
+  }, 100);
 }
 
 // ── State ─────────────────────────────────────────────────
@@ -984,6 +1117,7 @@ function parseCSVData(data) {
       regionId: +r.regionId,
       name:     r.name      || `Region #${r.regionId}`,
       pixels:   +r.pixels   || 0,
+      countryId:+r.countryId || 0,
       url:      r.url       || ''
     }));
   for (const r of rows) r._ll = regionCoords(r.regionId);
@@ -1172,6 +1306,8 @@ function render(rows, snap) {
 
   document.getElementById('searchinput').value = '';
   getVlist().load(applySort(rows), maxPx);
+  buildCountryData(rows);
+  if (currentView === 'countries') filterCountriesView('');
 }
 
 // ── Stats tab ─────────────────────────────────────────────
@@ -1197,6 +1333,7 @@ function renderStats(rows, totalPx, maxPx) {
 
   renderDistBar(pxArr, maxPx);
   renderDistInsights(pxArr, n);
+  renderCountryStats(rows);
 }
 
 function renderDistBar(sortedPx, maxPx) {
@@ -1243,6 +1380,83 @@ function renderDistInsights(pxArr, n) {
   document.getElementById('st-p90').textContent     = fmt(p90);
 }
 
+let countryData = [];
+
+function buildCountryData(rows) {
+  const tot={}, cnt={};
+  for (const r of rows) {
+    if (!r.countryId) continue;
+    tot[r.countryId] = (tot[r.countryId]||0) + r.pixels;
+    cnt[r.countryId] = (cnt[r.countryId]||0) + 1;
+  }
+  countryData = Object.keys(tot)
+    .map(id => ({id:+id, px:tot[id], n:cnt[id]}))
+    .sort((a,b) => b.px - a.px);
+}
+
+function filterCountriesView(q) {
+  const s = q.trim().toLowerCase();
+  // Filter by name
+  const base = s ? countryData.filter(c => cName(c.id).toLowerCase().includes(s)) : [...countryData];
+  // Apply sort
+  base.sort((a, b) => {
+    const av = ctySortKey === 'px' ? a.px : a.n;
+    const bv = ctySortKey === 'px' ? b.px : b.n;
+    return ctySortDir === 'asc' ? av - bv : bv - av;
+  });
+  renderCountriesLeaderboard(base);
+  const el = document.getElementById('srcount');
+  if (el) el.textContent = base.length < countryData.length
+    ? `${base.length} of ${countryData.length} countries`
+    : `${countryData.length} countries`;
+}
+
+function renderCountriesLeaderboard(list) {
+  const el = document.getElementById('lc-panel');
+  if (!el) return;
+  // Always use the global pixel max so bars stay proportional across sort changes
+  const mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
+  const frag = document.createDocumentFragment();
+  list.forEach(({id, px, n}, i) => {
+    const d = document.createElement('div');
+    d.className = 'cty-lb-row';
+    const nm = cName(id) || 'Country ' + id;
+    d.innerHTML =
+      `<span class="lrank">${i+1}</span>`+
+      `<span style="font-size:15px;flex-shrink:0;width:20px;text-align:center;line-height:1">${cFlag(id)}</span>`+
+      `<span class="lname" title="${nm}">${nm}</span>`+
+      `<div class="lbar-w"><div class="lbar" style="width:${(px/mx*100).toFixed(1)}%"></div></div>`+
+      `<span class="lval">${fmt(px)}</span>`+
+      `<span class="cty-reg-cnt">${n.toLocaleString()} regions</span>`;
+    frag.appendChild(d);
+  });
+  el.replaceChildren(frag);
+}
+
+function renderCountryStats(rows) {
+  const tot={}, cnt={};
+  for (const r of rows) {
+    if (!r.countryId) continue;
+    tot[r.countryId] = (tot[r.countryId]||0) + r.pixels;
+    cnt[r.countryId] = (cnt[r.countryId]||0) + 1;
+  }
+  const ids = Object.keys(tot).map(Number);
+  if (!ids.length) return;
+  const activeCount = ids.length;
+  const totalPx     = ids.reduce((s,id)=>s+tot[id], 0);
+  const totalReg    = ids.reduce((s,id)=>s+cnt[id], 0);
+  const topPxId     = ids.reduce((a,b)=>tot[a]>tot[b]?a:b);
+  const topRegId    = ids.reduce((a,b)=>cnt[a]>cnt[b]?a:b);
+  const set = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('st-cty-count',        activeCount.toLocaleString());
+  set('st-cty-avg-reg',      (totalReg/activeCount).toFixed(1));
+  set('st-cty-top-px',       fmt(tot[topPxId]));
+  set('st-cty-top-px-name',  `${cFlag(topPxId)} ${cName(topPxId)||'Country '+topPxId}`);
+  set('st-cty-top-reg',      cnt[topRegId].toLocaleString()+' regions');
+  set('st-cty-top-reg-name', `${cFlag(topRegId)} ${cName(topRegId)||'Country '+topRegId}`);
+  set('st-cty-avg-px',       fmt(Math.round(totalPx/activeCount)));
+}
+
 // ── flyTo ─────────────────────────────────────────────────
 function flyTo(r) {
   map.flyTo(r._ll, 10, {duration:1.1});
@@ -1252,6 +1466,7 @@ function flyTo(r) {
       <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
       <div class="pu-row"><b>Rank</b> #${r.rank}</div>
       <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
+      ${r.countryId?`<div class="pu-row"><b>Country</b> ${cFlag(r.countryId)} ${cName(r.countryId)}</div>`:""}
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
     </div>`).openOn(map);
 }
