@@ -85,17 +85,17 @@ aside.folded #resize-handle { display: none; }
 }
 #load-bar.done { display: none; }
 #load-bar .spin { width: 12px; height: 12px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
-#load-msg { font-size: 11px; color: var(--muted); }
+#load-msg { font-size: 11px; color: var(--muted); flex: 1; }
 
-/* Country rows in stats tab */
-.cty-row { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 6px; background: var(--raised); border: 1px solid var(--border); }
-.cty-rank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 14px; text-align: right; flex-shrink: 0; }
-.cty-flag { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; line-height: 1; }
-.cty-name { font-size: 11px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cty-bar-w { width: 44px; flex-shrink: 0; }
-.cty-bar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.55; }
-.cty-val { font-family: var(--mono); font-size: 10px; color: var(--cyan); width: 42px; text-align: right; flex-shrink: 0; }
-.cty-cnt { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 38px; text-align: right; flex-shrink: 0; }
+.retry-btn {
+  display: none; flex-shrink: 0;
+  font-family: var(--font); font-size: 10.5px; font-weight: 600;
+  color: var(--text); background: var(--raised); border: 1px solid var(--border);
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.retry-btn:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
 /* Tab bar */
 #tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .tab-btn {
@@ -167,7 +167,7 @@ aside.folded #resize-handle { display: none; }
 #lc-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
 #lc-panel::-webkit-scrollbar { width: 3px; }
 #lc-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
-.cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid #0a0d13; transition: background .1s; }
+.cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid #0a0d13; transition: background .1s; cursor: pointer; }
 .cty-lb-row:hover { background: var(--raised); }
 /* Country region-count chip — size to content, never clip */
 .cty-reg-cnt { font-family: var(--mono); font-size: 9px; color: var(--dim); white-space: nowrap; flex-shrink: 0; text-align: right; padding-left: 4px; }
@@ -296,7 +296,8 @@ kbd {
 /* Map loading overlay */
 #mload {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  z-index: 300; display: flex; align-items: center; gap: 10px;
+  z-index: 300; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  justify-content: center; max-width: min(320px, 86vw);
   background: color-mix(in srgb, var(--surface) 95%, transparent);
   border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px;
 }
@@ -414,7 +415,7 @@ kbd {
   #sidebar-reopen:hover { background: var(--accent); color: #fff; }
   #sidebar-reopen svg { transform: rotate(-90deg); }
   #sidebar-reopen-label { display: inline; font-family: var(--font); font-size: 13px; font-weight: 600; white-space: nowrap; }
-  #mwrap.has-slider #sidebar-reopen { bottom: 96px; }
+  body.has-slider #sidebar-reopen { bottom: 96px; }
 
   /* Bigger touch targets on the timeline slider */
   .ds-nav { width: 34px; height: 34px; font-size: 18px; }
@@ -445,8 +446,9 @@ kbd {
   </div>
 
   <div id="load-bar">
-    <div class="spin"></div>
+    <div class="spin" id="load-spin"></div>
     <span id="load-msg">Fetching leaderboard…</span>
+    <button id="load-retry" class="retry-btn" onclick="retryLoad()">Retry</button>
   </div>
 
   <!-- ── Tabs ── -->
@@ -634,7 +636,7 @@ kbd {
     <div class="sect"><div class="sect-title">How To Use</div></div>
     <ol class="info-steps">
       <li><span class="istep-num">1</span><span>Click any cell on the map — the hit area scales with zoom, so corners still register when you're zoomed in close.</span></li>
-      <li><span class="istep-num">2</span><span>Search by name or region ID, or sort by rank / region ID using the chips above the list.</span></li>
+      <li><span class="istep-num">2</span><span>Search by name, region ID, or country name, or sort by rank / region ID using the chips above the list.</span></li>
       <li><span class="istep-num">3</span><span>Click a row (or its locate button) to fly there and highlight it in the list — clicking the map does the same in reverse. The second button opens that region directly on wplace.live.</span></li>
       <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
       <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
@@ -674,7 +676,11 @@ kbd {
     <div id="mlegend-bar"></div>
     <div class="mleg-labels"><span>Low</span><span>High</span></div>
   </div>
-  <div id="mload"><div class="spin"></div><span id="mload-msg">Loading…</span></div>
+  <div id="mload">
+    <div class="spin" id="mload-spin"></div>
+    <span id="mload-msg">Loading…</span>
+    <button id="mload-retry" class="retry-btn" onclick="retryLoad()">Retry</button>
+  </div>
 
   <!-- ── Date timeline slider (visible when SNAPSHOTS.length > 1) ── -->
   <div id="date-slider-bar">
@@ -857,7 +863,7 @@ function buildOffscreen(rows, maxPx) {
     const t = Math.log1p(row.pixels)/logMax;
     const [cr,cg,cb] = gradRGB(t);
     const idx = (y*512+x)*4;
-    d[idx]=cr; d[idx+1]=cg; d[idx+2]=cb; d[idx+3]=220;
+    d[idx]=cr; d[idx+1]=cg; d[idx+2]=cb; d[idx+3]=255;
   }
   ctx.putImageData(img, 0, 0);
   return os;
@@ -909,7 +915,7 @@ function setView(v) {
   si.value = '';
   si.placeholder = isC ? 'Search country…' : 'Search name, ID or country…';
   document.getElementById('srcount').textContent = '';
-  if (isC) filterCountriesView(''); else { if (vlist) vlist.filter(''); }
+  if (isC) { updateCtySortUI(); filterCountriesView(''); } else { if (vlist) vlist.filter(''); }
 }
 
 function setSort(key) {
@@ -924,7 +930,7 @@ function setSort(key) {
 }
 
 function updateSortUI() {
-  document.querySelectorAll('.sort-chip').forEach(chip => {
+  document.querySelectorAll('[data-key]').forEach(chip => {
     const isActive = chip.dataset.key === sortKey;
     chip.classList.toggle('active', isActive);
     chip.querySelector('.arr').textContent = isActive ? (sortDir==='asc' ? '▲' : '▼') : '';
@@ -1001,7 +1007,7 @@ class VirtualList {
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
-        `<button class="lwp${hasUrl?'':' lwp-off'}" title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
+        `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
       div.addEventListener('click', ()=>selectRegion(cap));
       div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectRegion(cap);});
@@ -1056,6 +1062,7 @@ function initSlider() {
   const n = SNAPSHOTS.length;
   if (n > 1) {
     document.getElementById('mwrap').classList.add('has-slider');
+    document.body.classList.add('has-slider');
     const range = document.getElementById('date-range');
     range.max   = n - 1;
     range.value = currentSnapshotIdx;
@@ -1106,6 +1113,37 @@ function updateSliderUI(idx) {
     document.querySelectorAll('.ds-tick').forEach((t, i) =>
       t.classList.toggle('current', i === idx));
   }
+}
+
+// ── Load-error UI helpers ─────────────────────────────────
+// Tracks whatever most recently failed so the Retry button can re-run it
+// without the caller needing to remember snapshot discovery vs. a specific date.
+let lastFailedAction = null; // 'discover' | { type: 'snapshot', idx }
+
+function setLoadError(msg) {
+  document.getElementById('load-msg').textContent  = msg;
+  document.getElementById('mload-msg').textContent = msg;
+  document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+  document.getElementById('load-spin').style.display  = 'none';
+  document.getElementById('mload-spin').style.display = 'none';
+  document.getElementById('load-retry').style.display  = 'inline-block';
+  document.getElementById('mload-retry').style.display = 'inline-block';
+  document.getElementById('load-bar').classList.remove('done');
+  document.getElementById('mload').classList.remove('done');
+}
+
+function clearLoadError() {
+  document.getElementById('load-bar').style.background = '';
+  document.getElementById('load-spin').style.display  = '';
+  document.getElementById('mload-spin').style.display = '';
+  document.getElementById('load-retry').style.display  = 'none';
+  document.getElementById('mload-retry').style.display = 'none';
+}
+
+function retryLoad() {
+  clearLoadError();
+  if (lastFailedAction === 'discover') discoverAndLoad();
+  else if (lastFailedAction && lastFailedAction.type === 'snapshot') loadSnapshot(lastFailedAction.idx);
 }
 
 // ── Snapshot loading ──────────────────────────────────────
@@ -1162,6 +1200,7 @@ async function loadSnapshot(idx) {
   const snap   = SNAPSHOTS[idx];
   const reqIdx = idx;
   loadingSnapshotIdx = reqIdx;
+  clearLoadError(); // clears any red/error state left over from a previous failed attempt
 
   // Serve from cache — no re-download needed
   if (snapshotCache.has(snap.date)) {
@@ -1171,7 +1210,6 @@ async function loadSnapshot(idx) {
   }
 
   const msgEl  = document.getElementById('mload-msg');
-  const barEl  = document.getElementById('load-bar');
   document.getElementById('mload').classList.remove('done');
   msgEl.textContent = `Downloading ${fmtDate(snap.date)}… 0%`;
 
@@ -1200,10 +1238,8 @@ async function loadSnapshot(idx) {
     document.getElementById('mload').classList.add('done');
   } catch(err) {
     if (loadingSnapshotIdx !== reqIdx) return;
-    const msg = `Error: ${err.message}`;
-    document.getElementById('load-msg').textContent  = msg;
-    msgEl.textContent = msg;
-    barEl.style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+    lastFailedAction = { type: 'snapshot', idx: reqIdx };
+    setLoadError(`Error: ${err.message}`);
   }
 }
 
@@ -1243,10 +1279,10 @@ async function fetchSnapshotList() {
 }
 
 // ── Auto-load ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+async function discoverAndLoad() {
+  clearLoadError();
   document.getElementById('mload').classList.remove('done');
   document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
-  document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
 
   try {
     SNAPSHOTS          = await fetchSnapshotList();
@@ -1257,26 +1293,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSlider();
     await loadSnapshot(currentSnapshotIdx);
   } catch (err) {
-    const msg = `Error: ${err.message}`;
-    document.getElementById('load-msg').textContent  = msg;
-    document.getElementById('mload-msg').textContent = msg;
-    document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
-    document.getElementById('mload').classList.add('done');
+    lastFailedAction = 'discover';
+    setLoadError(`Error: ${err.message}`);
   }
-});
-
-// ── Ingest (legacy wrapper — kept for any direct callers) ──
-function ingestCSV(data) {
-  const snap = SNAPSHOTS[currentSnapshotIdx];
-  const rows = parseCSVData(data);
-  rowsData = rows;
-  render(rows, snap);
-  document.getElementById('load-bar').classList.add('done');
-  document.getElementById('mload').classList.add('done');
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
+  discoverAndLoad();
+});
 
 // ── Render ────────────────────────────────────────────────
 function render(rows, snap) {
+  selectedRegionId = null;
+  map.closePopup();
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
   maxPxGlobal = maxPx;
@@ -1380,6 +1410,20 @@ function renderDistInsights(pxArr, n) {
   document.getElementById('st-p90').textContent     = fmt(p90);
 }
 
+// Clicking a country row in Countries view jumps to that country's regions —
+// switches to the Regions tab, filters the list by country name, and flies
+// the map to that country's single most-painted region for orientation.
+function goToCountry(id) {
+  const nm = cName(id) || ('Country ' + id);
+  setView('regions');
+  const si = document.getElementById('searchinput');
+  si.value = nm;
+  getVlist().filter(nm);
+  const top = rowsData.filter(r => r.countryId === id)
+    .reduce((m,r) => (!m || r.pixels > m.pixels) ? r : m, null);
+  if (top) selectRegion(top, true);
+}
+
 let countryData = [];
 
 function buildCountryData(rows) {
@@ -1427,7 +1471,8 @@ function renderCountriesLeaderboard(list) {
       `<span class="lname" title="${nm}">${nm}</span>`+
       `<div class="lbar-w"><div class="lbar" style="width:${(px/mx*100).toFixed(1)}%"></div></div>`+
       `<span class="lval">${fmt(px)}</span>`+
-      `<span class="cty-reg-cnt">${n.toLocaleString()} regions</span>`;
+      `<span class="cty-reg-cnt">${n.toLocaleString()} regions</span>`;
+    d.addEventListener('click', () => goToCountry(id));
     frag.appendChild(d);
   });
   el.replaceChildren(frag);
