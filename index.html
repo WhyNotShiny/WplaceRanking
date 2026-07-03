@@ -217,6 +217,17 @@
   <!-- ── Info panel ── -->
   <div id="panel-info" class="tab-panel">
 
+    <div class="sect"><div class="sect-title">What Is This</div></div>
+    <div class="info-block">
+      <p>This is an interactive map and leaderboard for <a href="https://wplace.live" target="_blank" rel="noopener">wplace.live</a>, a collaborative pixel-art canvas covering the whole world. The globe is divided into a 512×512 grid of regions; each region's total painted pixels are ranked here, rolled up to country level, and plotted on the map as a colour-coded heatmap.</p>
+      <p style="margin-top:8px;">Rankings are built from periodic snapshots rather than live data, so what you see reflects the most recent (or selected) snapshot date, not the current live canvas. Use the timeline slider at the bottom of the map to compare snapshots across dates.</p>
+    </div>
+
+    <div class="sect"><div class="sect-title">Accuracy &amp; Limitations</div></div>
+    <div class="info-callout">
+      <b>Note:</b> the source data caps each region at its top 50 individual painters — full totals are only guaranteed for a country's own top 50 regions. Any region outside its country's top 50 is undercounted, so country totals skew low. For example, the United States shows roughly 6.5 billion pixels here versus an actual total closer to 8 billion. Treat all figures as a <b>lower bound</b>, not an exact count.
+    </div>
+
     <div class="sect"><div class="sect-title">Data Source</div></div>
     <div class="scard-grid">
       <div class="scard wide">

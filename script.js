@@ -36,8 +36,17 @@ const REPO_DIR    = 'Leaderboard_files';   // sub-folder the CSVs actually live 
 // CSV files must be named exactly:  region_leaderboard_YYYY-MM-DD.csv
 const CSV_PREFIX  = 'region_leaderboard_';
 
+// Hardcoded fallback — used only if the GitHub API discovery call fails
+// (e.g. rate-limited), so the app doesn't get stuck on "Fetching…" forever.
+// Confirmed present in REPO_DIR as of this writing.
+const FALLBACK_DATES = [
+  '2026-06-22',
+  '2026-06-28',
+];
+
 // Populated automatically from the GitHub API on load — no manual editing needed.
 let SNAPSHOTS          = [];
+let usingFallbackDates = false; // true when discovery failed and FALLBACK_DATES was used instead
 const snapshotCache    = new Map(); // date → parsed rows (avoids re-fetching)
 let currentSnapshotIdx = 0;
 let loadingSnapshotIdx = -1;        // race-condition guard
@@ -47,6 +56,12 @@ let loadingSnapshotIdx = -1;        // race-condition guard
 const WORLD_LAT  =  85.0511287798066;
 const WORLD_LAT2 = -85.0511287798066;
 const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
+
+// A slightly padded copy used only as the map's maxBounds — flying to an
+// edge region no longer snaps back the instant the viewport pokes past the
+// true world edge; it has to drift further before the pull-back kicks in.
+// WORLD_BOUNDS_MAIN itself stays exact since the overlays are pinned to it.
+const MAP_MAX_BOUNDS = L.latLngBounds(WORLD_BOUNDS_MAIN).pad(0.2);
 
 // Mercator's projection clamps latitude to WORLD_LAT internally, which
 // made the padded maxBounds a no-op vertically (no clamp exists for
@@ -410,6 +425,21 @@ class VirtualList {
       this._el.scrollTop=Math.max(0, target-viewH/2+this._ih/2);
     }
   }
+
+  // Exact-match filter by country ID — used when navigating from a country
+  // click, where a name-substring filter would incorrectly pull in other
+  // countries whose name contains this one (e.g. "Niger" inside "Nigeria").
+  filterByCountryId(id) {
+    this._rows = this._all.filter(r => r.countryId === id);
+    this._el.scrollTop = 0; this._key = null;
+    this._paint();
+    const n = this._rows.length, tot = this._all.length;
+    const el = document.getElementById('srcount');
+    if (el) {
+      el.textContent = `${n.toLocaleString()} of ${tot.toLocaleString()} match`;
+      el.classList.toggle('empty-hint', n===0);
+    }
+  }
 }
 
 let vlist=null;
@@ -673,17 +703,30 @@ async function discoverAndLoad() {
   document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
 
   try {
-    SNAPSHOTS          = await fetchSnapshotList();
-    currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest
-    const n = SNAPSHOTS.length;
-    document.getElementById('load-msg').textContent =
-      `Found ${n} snapshot${n === 1 ? '' : 's'} — loading latest…`;
-    initSlider();
-    await loadSnapshot(currentSnapshotIdx);
+    SNAPSHOTS = await fetchSnapshotList();
+    usingFallbackDates = false;
   } catch (err) {
-    lastFailedAction = 'discover';
-    setLoadError(`Error: ${err.message}`);
+    if (!FALLBACK_DATES.length) {
+      lastFailedAction = 'discover';
+      setLoadError(`Error: ${err.message}`);
+      return;
+    }
+    // Discovery failed (e.g. GitHub API rate limit) — build SNAPSHOTS from
+    // the hardcoded list instead of hanging on "Fetching leaderboard…".
+    usingFallbackDates = true;
+    SNAPSHOTS = [...FALLBACK_DATES].sort().map(date => ({
+      date,
+      url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
+    }));
   }
+
+  currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest
+  const n = SNAPSHOTS.length;
+  document.getElementById('load-msg').textContent = usingFallbackDates
+    ? `Using ${n} cached snapshot${n === 1 ? '' : 's'} (live list unavailable)…`
+    : `Found ${n} snapshot${n === 1 ? '' : 's'} — loading latest…`;
+  initSlider();
+  await loadSnapshot(currentSnapshotIdx);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -825,13 +868,15 @@ function goToCountry(id) {
   setView('regions');
   const si = document.getElementById('searchinput');
   si.value = nm;
-  getVlist().filter(nm);
+  getVlist().filterByCountryId(id);
 
   if (countryRows.length === 1) {
+    map._stop();
     map.flyTo(countryRows[0]._ll, REGION_FLY_ZOOM, { duration: REGION_FLY_DURATION });
   } else {
+    map._stop();
     const bounds = L.latLngBounds(countryRows.map(r => r._ll));
-    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: 1.1 });
+    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: 0.6 });
   }
 
   closeMobileSidebarIfNeeded();
@@ -1038,7 +1083,7 @@ function toggleHeatmapOnly() {
 // Single-region fly target: zoomed out slightly from a "block-level" zoom so
 // a selected region reads in more of its surrounding context.
 const REGION_FLY_ZOOM = 9;
-const REGION_FLY_DURATION = 1.0;
+const REGION_FLY_DURATION = 0.6;
 
 // `suppressPopupClose` guards against the map's own popup-swap mechanism:
 // opening a new popup while one is already showing makes Leaflet close the
@@ -1046,16 +1091,20 @@ const REGION_FLY_DURATION = 1.0;
 // this guard, that internal swap would be mistaken for the user dismissing
 // the popup and would incorrectly clear the brand-new selection we just made.
 let suppressPopupClose = false;
+let flyToken = 0; // guards the "redraw selection once this flight settles" callback below —
+                   // without it, a stale listener from an interrupted flight can still fire
+                   // alongside the listener for whichever flight actually finishes.
 
 function flyTo(r) {
-  // Leaflet's public stop() snaps the view back inside maxBounds instantly
-  // (that's the visible "bounce"). Its private _stop() just cancels any
-  // in-flight flyTo/pan-correction animation without that snap — which is
-  // also exactly what flyTo() calls on itself internally, so this only
-  // extends that same cancellation to the maxBounds correction pan that
-  // may still be settling from the previous selection.
   map._stop();
+  const token = ++flyToken;
   map.flyTo(r._ll, REGION_FLY_ZOOM, {duration: REGION_FLY_DURATION});
+  map.once('moveend', () => {
+    // Only redraw if this is still the most recent flight AND the region
+    // it was flying to is still the current selection.
+    if (token !== flyToken || selectedRegionId !== r.regionId) return;
+    updateSelectionMarker(r.regionId);
+  });
   suppressPopupClose = true;
   L.popup({
     maxWidth: 230,
@@ -1098,7 +1147,7 @@ function selectRegion(r, scroll) {
   clearCountryHighlight();
   selectedCountryId = null;
   selectedRegionId = r.regionId;
-  updateSelectionMarker(r.regionId);
+  updateSelectionMarker(null); // hide immediately — flyTo() redraws it once the flight settles
   flyTo(r);
   if (vlist) {
     vlist._key = null;
