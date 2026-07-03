@@ -169,6 +169,8 @@ aside.folded #resize-handle { display: none; }
 #lc-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
 .cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid #0a0d13; transition: background .1s; cursor: pointer; }
 .cty-lb-row:hover { background: var(--raised); }
+.cty-lb-row.selected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cty-lb-row.selected .lname { color: var(--text); font-weight: 600; }
 /* Country region-count chip — size to content, never clip */
 .cty-reg-cnt { font-family: var(--mono); font-size: 9px; color: var(--dim); white-space: nowrap; flex-shrink: 0; text-align: right; padding-left: 4px; }
 /* Country sort bar — same look as the regions sort bar */
@@ -274,6 +276,24 @@ kbd {
 #minfo-pill:hover { border-color: var(--muted); }
 #minfo-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 #minfo-date  { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+/* Heatmap-only toggle */
+#heatmap-toggle {
+  position: absolute; top: 14px; left: 14px; z-index: 400;
+  width: 34px; height: 34px; border-radius: 7px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+  color: var(--dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#heatmap-toggle:hover { color: var(--text); border-color: var(--muted); }
+#heatmap-toggle.on { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+/* Hides the base map tiles + place labels, leaving just the coloured region overlay */
+#map.heatmap-only .leaflet-tile-pane,
+#map.heatmap-only .leaflet-labels-pane {
+  display: none;
+}
 
 /* Gradient legend */
 #mlegend {
@@ -426,6 +446,7 @@ kbd {
   /* Free up bottom-right for the legend; zoom control moves to bottom-left */
   .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
   #minfo-pill { top: max(14px, env(safe-area-inset-top)); }
+  #heatmap-toggle { top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
 }
 </style>
 </head>
@@ -642,9 +663,11 @@ kbd {
       <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
       <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
       <li><span class="istep-num">7</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
+      <li><span class="istep-num">8</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
+      <li><span class="istep-num">9</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
     </ol>
     <div class="info-block">
-      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus and closes popups · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
+      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
     </div>
 
     <div class="sect"><div class="sect-title">Credits</div></div>
@@ -668,6 +691,12 @@ kbd {
     <span id="sidebar-reopen-label">Leaderboard</span>
   </button>
   <div id="map"></div>
+  <button id="heatmap-toggle" onclick="toggleHeatmapOnly()" title="Show only the coloured region squares">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  </button>
   <div id="minfo-pill" title="Click for data source & info">
     <div id="minfo-count">— regions</div>
     <div id="minfo-date">—</div>
@@ -771,6 +800,15 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.p
   subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane', noWrap: true
 }).addTo(map);
 
+// Sit above labels so highlight/selection indicators stay visible even
+// when the base map + labels are showing (not just in heatmap-only mode).
+map.createPane('countryHighlightPane');
+map.getPane('countryHighlightPane').style.zIndex = '460';
+map.getPane('countryHighlightPane').style.pointerEvents = 'none';
+map.createPane('selectionPane');
+map.getPane('selectionPane').style.zIndex = '470';
+map.getPane('selectionPane').style.pointerEvents = 'none';
+
 // ── Gradient ──────────────────────────────────────────────
 const STOPS = [
   [0.00, [26,  5, 64]],
@@ -812,6 +850,24 @@ function latlngToRegionId(lat, lng) {
   const n = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
   const y = Math.min(511, Math.max(0, Math.floor((Math.PI - n) / (2 * Math.PI) * 512)));
   return y * 512 + x + 1;
+}
+
+// Same Mercator math as regionCoords, but for a cell edge (integer row)
+// rather than its center (row + 0.5) — used to build the cell's four corners.
+function mercLatFromRow(yFrac) {
+  const n = Math.PI - 2*Math.PI*yFrac/512;
+  return (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
+}
+
+// Exact SW/NE bounds of a region's grid cell, for drawing a selection box
+// that lines up pixel-perfectly with the heatmap overlay.
+function regionCellBounds(rid) {
+  const x = (rid-1) % 512, y = (rid-1)/512|0;
+  const lngW = (x/512)*360 - 180;
+  const lngE = ((x+1)/512)*360 - 180;
+  const latN = mercLatFromRow(y);
+  const latS = mercLatFromRow(y+1);
+  return [[latS, lngW], [latN, lngE]];
 }
 
 // ── Format ────────────────────────────────────────────────
@@ -1009,8 +1065,8 @@ class VirtualList {
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
         `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
-      div.addEventListener('click', ()=>selectRegion(cap));
-      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectRegion(cap);});
+      div.addEventListener('click', ()=>selectOrToggleRegion(cap));
+      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectOrToggleRegion(cap);});
       if (hasUrl) div.querySelector('.lwp').addEventListener('click',e=>{e.stopPropagation();window.open(cap.url,'_blank','noopener,noreferrer');});
       frag.appendChild(div);
     }
@@ -1043,6 +1099,9 @@ function onSearch(val) {
 
 // ── State ─────────────────────────────────────────────────
 let rowsData=[], maxPxGlobal=1, selectedRegionId=null, rowById=new Map();
+let selectedCountryId=null, selectionRect=null;
+let countryHighlightOverlay=null, countryHighlightBlobUrl=null;
+let heatmapOnly=false;
 
 // ── Date helpers ──────────────────────────────────────────
 function fmtDate(iso) {
@@ -1306,6 +1365,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Render ────────────────────────────────────────────────
 function render(rows, snap) {
   selectedRegionId = null;
+  selectedCountryId = null;
+  updateSelectionMarker(null);
+  clearCountryHighlight();
   map.closePopup();
   const totalPx = rows.reduce((s,r)=>s+r.pixels, 0);
   const maxPx   = rows.reduce((m,r)=>Math.max(m,r.pixels), 0);
@@ -1411,17 +1473,39 @@ function renderDistInsights(pxArr, n) {
 }
 
 // Clicking a country row in Countries view jumps to that country's regions —
-// switches to the Regions tab, filters the list by country name, and flies
-// the map to that country's single most-painted region for orientation.
+// switches to the Regions tab, filters the list by country name, washes all
+// of that country's regions on the map, and fits the view to show them.
+// Clicking the same country again toggles the highlight off.
 function goToCountry(id) {
+  if (selectedCountryId === id) {
+    deselectCountry();
+    return;
+  }
+
+  const countryRows = rowsData.filter(r => r.countryId === id);
+  if (!countryRows.length) return;
+
+  selectedCountryId = id;
+  setCountryHighlight(id);
+
+  // A country highlight replaces any individual region selection
+  selectedRegionId = null;
+  updateSelectionMarker(null);
+
   const nm = cName(id) || ('Country ' + id);
   setView('regions');
   const si = document.getElementById('searchinput');
   si.value = nm;
   getVlist().filter(nm);
-  const top = rowsData.filter(r => r.countryId === id)
-    .reduce((m,r) => (!m || r.pixels > m.pixels) ? r : m, null);
-  if (top) selectRegion(top, true);
+
+  if (countryRows.length === 1) {
+    map.flyTo(countryRows[0]._ll, 10, { duration: 1.1 });
+  } else {
+    const bounds = L.latLngBounds(countryRows.map(r => r._ll));
+    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: 1.1 });
+  }
+
+  closeMobileSidebarIfNeeded();
 }
 
 let countryData = [];
@@ -1463,7 +1547,7 @@ function renderCountriesLeaderboard(list) {
   const frag = document.createDocumentFragment();
   list.forEach(({id, px, n}, i) => {
     const d = document.createElement('div');
-    d.className = 'cty-lb-row';
+    d.className = 'cty-lb-row' + (id === selectedCountryId ? ' selected' : '');
     const nm = cName(id) || 'Country ' + id;
     d.innerHTML =
       `<span class="lrank">${i+1}</span>`+
@@ -1502,9 +1586,96 @@ function renderCountryStats(rows) {
   set('st-cty-avg-px',       fmt(Math.round(totalPx/activeCount)));
 }
 
+// ── Selection box — a crisp vector rectangle around the selected region's
+// exact grid cell, so it stays sharp at any zoom instead of a blurry raster dot.
+function updateSelectionMarker(regionId) {
+  if (selectionRect) { map.removeLayer(selectionRect); selectionRect = null; }
+  if (regionId == null) return;
+  selectionRect = L.rectangle(regionCellBounds(regionId), {
+    pane: 'selectionPane', color: '#ff2d6f', weight: 3,
+    fill: true, fillColor: '#ff2d6f', fillOpacity: 0.25,
+    interactive: false
+  }).addTo(map);
+}
+
+// ── Country highlight — a translucent white wash over every region cell
+// belonging to a country, built the same way as the base heatmap image so
+// it lines up pixel-for-pixel regardless of how many regions are involved.
+function buildCountryHighlightCanvas(countryId) {
+  const os = document.createElement('canvas');
+  os.width = os.height = 512;
+  const ctx = os.getContext('2d');
+  const img = ctx.createImageData(512, 512); // fully transparent by default
+  const d = img.data;
+  for (const row of rowsData) {
+    if (row.countryId !== countryId) continue;
+    const x = (row.regionId-1) % 512, y = (row.regionId-1)/512|0;
+    if (x<0||x>511||y<0||y>511) continue;
+    const idx = (y*512+x)*4;
+    d[idx]=255; d[idx+1]=255; d[idx+2]=255; d[idx+3]=150;
+  }
+  ctx.putImageData(img, 0, 0);
+  return os;
+}
+
+function setCountryHighlight(countryId) {
+  buildCountryHighlightCanvas(countryId).toBlob(blob => {
+    if (!blob) return;
+    if (selectedCountryId !== countryId) return; // selection changed/cleared while this was building
+    const url = URL.createObjectURL(blob);
+    if (countryHighlightOverlay) map.removeLayer(countryHighlightOverlay);
+    countryHighlightOverlay = L.imageOverlay(url, WORLD_BOUNDS_MAIN, {
+      pane: 'countryHighlightPane', interactive: false, className: 'filled-overlay'
+    }).addTo(map);
+    if (countryHighlightBlobUrl) URL.revokeObjectURL(countryHighlightBlobUrl);
+    countryHighlightBlobUrl = url;
+  }, 'image/png');
+}
+
+function deselectCountry() {
+  clearCountryHighlight();
+  selectedCountryId = null;
+  if (currentView === 'countries') filterCountriesView(document.getElementById('searchinput').value);
+}
+
+function deselectRegion() {
+  selectedRegionId = null;
+  updateSelectionMarker(null);
+  if (vlist) { vlist._key = null; vlist._paint(); }
+}
+
+function clearCountryHighlight() {
+  if (countryHighlightOverlay) { map.removeLayer(countryHighlightOverlay); countryHighlightOverlay = null; }
+}
+
+// On mobile the sidebar is a full-screen overlay — close it after picking
+// a region or country so the fly animation and map are actually visible.
+function closeMobileSidebarIfNeeded() {
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    const asideEl = document.querySelector('aside');
+    if (asideEl && !asideEl.classList.contains('folded')) toggleSidebar();
+  }
+}
+
+// ── Heatmap-only mode — hides the base map tiles + place labels, leaving
+// just the coloured region squares (and any highlight/selection indicators).
+function toggleHeatmapOnly() {
+  heatmapOnly = !heatmapOnly;
+  document.getElementById('map').classList.toggle('heatmap-only', heatmapOnly);
+  document.getElementById('heatmap-toggle').classList.toggle('on', heatmapOnly);
+}
+
 // ── flyTo ─────────────────────────────────────────────────
+// `suppressPopupClose` guards against the map's own popup-swap mechanism:
+// opening a new popup while one is already showing makes Leaflet close the
+// old one first (firing 'popupclose') before opening the new one. Without
+// this guard, that internal swap would be mistaken for the user dismissing
+// the popup and would incorrectly clear the brand-new selection we just made.
+let suppressPopupClose = false;
+
 function flyTo(r) {
-  map.flyTo(r._ll, 10, {duration:1.1});
+  map.flyTo(r._ll, 9, {duration:1.0});
+  suppressPopupClose = true;
   L.popup({maxWidth:230}).setLatLng(r._ll).setContent(`
     <div class="pu">
       <div class="pu-name">${r.name}</div>
@@ -1514,23 +1685,41 @@ function flyTo(r) {
       ${r.countryId?`<div class="pu-row"><b>Country</b> ${cFlag(r.countryId)} ${cName(r.countryId)}</div>`:""}
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
     </div>`).openOn(map);
+  // The close-then-open swap above (if a popup was already showing) happens
+  // fully synchronously, so it's safe to drop the guard immediately after.
+  suppressPopupClose = false;
 }
+
+// Clicking a popup's own "×" button (or Leaflet's default click-elsewhere-
+// to-close behaviour) fires this event. Previously nothing listened for it,
+// so the red selection box stayed on the map after the popup was dismissed.
+// We only react when the close wasn't just an internal popup swap (see flyTo).
+map.on('popupclose', () => {
+  if (suppressPopupClose) return;
+  if (selectedRegionId != null) deselectRegion();
+});
 
 // ── Selection — keeps map clicks and list clicks in sync ──
 function selectRegion(r, scroll) {
+  clearCountryHighlight();
+  selectedCountryId = null;
   selectedRegionId = r.regionId;
+  updateSelectionMarker(r.regionId);
   flyTo(r);
   if (vlist) {
     vlist._key = null;
     vlist._paint();
     if (scroll) vlist.scrollToRegion(r.regionId);
   }
-  // On mobile the sidebar is a full-screen overlay — close it after picking
-  // a region so the fly animation and map are actually visible.
-  if (window.matchMedia('(max-width: 768px)').matches) {
-    const asideEl = document.querySelector('aside');
-    if (asideEl && !asideEl.classList.contains('folded')) toggleSidebar();
-  }
+  closeMobileSidebarIfNeeded();
+}
+
+// Used by list rows only (not the map click handler, to avoid interfering
+// with Leaflet's native double-click-to-zoom): a second click on the
+// already-selected region deselects it instead of re-selecting it.
+function selectOrToggleRegion(r) {
+  if (selectedRegionId === r.regionId) { deselectRegion(); return; }
+  selectRegion(r, true);
 }
 
 // ── Map click — O(1) region lookup via inverse projection ──
@@ -1556,6 +1745,20 @@ map.on('click', e => {
     }
   }
   if (row) selectRegion(row);
+});
+
+// ── Keep the selection box (and country wash) pixel-perfect during and
+// after any map movement ──────────────────────────────────────────────
+// Leaflet normally repositions vector layers and image overlays on its own,
+// but an in-flight flyTo() animation that gets interrupted by a manual pan
+// or zoom (the user "quickly moving the screen" right after selecting) can
+// leave the renderer's internal transform out of sync with the map's actual
+// position — the box then visually drifts from the grid cell it should be
+// covering. Forcing a full reprojection from the stored lat/lng bounds on
+// every move/zoom tick — and again once the view settles — guarantees the
+// box always snaps back to the exact cell regardless of how the view got there.
+map.on('move zoom moveend zoomend', () => {
+  if (selectionRect) selectionRect.redraw();
 });
 // ── Sidebar toggle ────────────────────────────────────────
 function toggleSidebar() {
@@ -1622,6 +1825,8 @@ document.addEventListener('keydown', e => {
   } else if (e.key === 'Escape') {
     search.blur();
     map.closePopup();
+    if (selectedRegionId != null) deselectRegion();
+    if (selectedCountryId != null) deselectCountry();
   } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement !== search && SNAPSHOTS.length > 1) {
     e.preventDefault();
     stepSnapshot(e.key === 'ArrowLeft' ? -1 : 1);
