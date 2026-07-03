@@ -19,16 +19,42 @@
   --cyan:    #22d3ee;
   --green:   #34d399;
   --orange:  #f59e0b;
+  --red:     #f87171;
   --text:    #e8eaf0;
+  --text-secondary: #9aa3b5;
   --muted:   #4a5568;
   --dim:     #2d3748;
+  --divider: #0a0d13;
   --font:    'Space Grotesk', system-ui, sans-serif;
   --mono:    'JetBrains Mono', monospace;
   --sw:      380px;
+
+  /* Type scale — kept intentionally small so nothing drifts by half a pixel */
+  --fs-3xs: 8px;   /* tick labels, chip arrows */
+  --fs-2xs: 9px;   /* micro labels: rank/id columns, section titles, sort labels */
+  --fs-xs:  10px;  /* small values: chip text, pixel values, retry button, kbd */
+  --fs-sm:  11px;  /* body-small: list names, tab labels, info copy */
+  --fs-base:12px;  /* base: search input, slider date */
+  --fs-md:  13px;  /* popup title, map loading text */
+  --fs-lg:  14px;  /* stat card values */
+  --fs-num: 26px;  /* hero pixel counter */
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
 #app { display: flex; height: 100vh; }
+
+/* ── Focus ring — one shared treatment for every interactive element ─────
+   Keyboard users get a visible ring; mouse users don't see a ring on click. */
+button:focus-visible,
+input:focus-visible,
+.li:focus-visible,
+.cty-lb-row:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+#searchinput:focus-visible { outline-offset: 0; }
 
 /* ── Sidebar ───────────────────────────────────────────── */
 aside {
@@ -43,7 +69,7 @@ aside.folded { width: 0 !important; min-width: 0 !important; }
 /* Header */
 #s-head { padding: 12px 12px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .s-head-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
-#s-head h1 { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; min-width: 0; }
+#s-head h1 { font-size: var(--fs-2xs); font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; min-width: 0; text-transform: uppercase; }
 #s-head h1 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
 #fold-btn {
   width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
@@ -73,9 +99,9 @@ aside.folded #fold-btn svg { transform: rotate(180deg); }
 #resize-handle:hover { background: color-mix(in srgb, var(--accent) 35%, transparent); }
 #resize-handle.active { background: color-mix(in srgb, var(--accent) 55%, transparent); }
 aside.folded #resize-handle { display: none; }
-#big-num { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-top: 6px; line-height: 1; color: var(--text); }
+#big-num { font-family: var(--mono); font-size: var(--fs-num); font-weight: 600; letter-spacing: -1px; margin-top: 6px; line-height: 1; color: var(--text); }
 #big-num.idle { color: var(--dim); }
-#big-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.9px; margin-top: 3px; }
+#big-label { font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.9px; margin-top: 3px; }
 
 /* Load bar */
 #load-bar {
@@ -85,11 +111,11 @@ aside.folded #resize-handle { display: none; }
 }
 #load-bar.done { display: none; }
 #load-bar .spin { width: 12px; height: 12px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
-#load-msg { font-size: 11px; color: var(--muted); flex: 1; }
+#load-msg { font-size: var(--fs-sm); color: var(--muted); flex: 1; }
 
 .retry-btn {
   display: none; flex-shrink: 0;
-  font-family: var(--font); font-size: 10.5px; font-weight: 600;
+  font-family: var(--font); font-size: var(--fs-xs); font-weight: 600;
   color: var(--text); background: var(--raised); border: 1px solid var(--border);
   border-radius: 5px; padding: 3px 10px; cursor: pointer;
   transition: border-color .15s, background .15s, color .15s;
@@ -99,7 +125,7 @@ aside.folded #resize-handle { display: none; }
 /* Tab bar */
 #tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .tab-btn {
-  flex: 1; padding: 9px 6px; font-size: 11px; font-weight: 600; font-family: var(--font);
+  flex: 1; padding: 9px 6px; font-size: var(--fs-sm); font-weight: 600; font-family: var(--font);
   color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent;
   cursor: pointer; transition: color .15s, background .15s, border-color .15s;
   display: flex; align-items: center; justify-content: center; gap: 5px;
@@ -122,16 +148,16 @@ aside.folded #resize-handle { display: none; }
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
   padding: 7px 12px 6px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.sort-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px; flex-shrink: 0; }
+.sort-label { font-size: var(--fs-2xs); color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px; flex-shrink: 0; }
 .sort-chip {
-  font-size: 10px; font-weight: 500; font-family: var(--font);
+  font-size: var(--fs-xs); font-weight: 500; font-family: var(--font);
   color: var(--muted); background: var(--raised); border: 1px solid var(--border);
   border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; gap: 3px;
 }
 .sort-chip:hover { border-color: var(--muted); color: var(--text); }
 .sort-chip.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.sort-chip .arr { font-size: 8px; }
+.sort-chip .arr { font-size: var(--fs-3xs); }
 
 /* Column labels */
 #col-heads {
@@ -140,7 +166,7 @@ aside.folded #resize-handle { display: none; }
   background: color-mix(in srgb, var(--raised) 60%, transparent);
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.col-h { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.col-h { font-size: var(--fs-2xs); color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Search */
 #searchbox { padding: 8px 12px 4px; flex-shrink: 0; position: relative; }
@@ -148,15 +174,16 @@ aside.folded #resize-handle { display: none; }
 #searchinput {
   width: 100%; background: var(--raised); border: 1px solid var(--border);
   border-radius: 6px; padding: 5px 9px 5px 27px;
-  font-family: var(--font); font-size: 12px; color: var(--text); outline: none; transition: border-color .15s;
+  font-family: var(--font); font-size: var(--fs-base); color: var(--text); outline: none; transition: border-color .15s;
 }
 #searchinput:focus { border-color: var(--accent); }
 #searchinput::placeholder { color: var(--muted); }
-#srcount { font-size: 10px; color: var(--dim); padding: 2px 12px 4px; flex-shrink: 0; min-height: 16px; }
+#srcount { font-size: var(--fs-xs); color: var(--dim); padding: 2px 12px 4px; flex-shrink: 0; min-height: 16px; }
+#srcount.empty-hint { color: var(--muted); }
 
 /* View toggle */
 #view-toggle { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.vtog { flex: 1; padding: 7px 8px; font-size: 11px; font-weight: 500; font-family: var(--font); color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+.vtog { flex: 1; padding: 7px 8px; font-size: var(--fs-sm); font-weight: 500; font-family: var(--font); color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
 .vtog:hover { color: var(--text); }
 .vtog.on { color: var(--accent); border-bottom-color: var(--accent); }
 /* Virtual scroll area */
@@ -167,20 +194,26 @@ aside.folded #resize-handle { display: none; }
 #lc-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
 #lc-panel::-webkit-scrollbar { width: 3px; }
 #lc-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
-.cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid #0a0d13; transition: background .1s; cursor: pointer; }
+.cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid var(--divider); transition: background .1s; cursor: pointer; }
 .cty-lb-row:hover { background: var(--raised); }
 .cty-lb-row.selected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .cty-lb-row.selected .lname { color: var(--text); font-weight: 600; }
 /* Country region-count chip — size to content, never clip */
-.cty-reg-cnt { font-family: var(--mono); font-size: 9px; color: var(--dim); white-space: nowrap; flex-shrink: 0; text-align: right; padding-left: 4px; }
+.cty-reg-cnt { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--dim); white-space: nowrap; flex-shrink: 0; text-align: right; padding-left: 4px; }
 /* Country sort bar — same look as the regions sort bar */
 #cty-sort-bar { display: none; align-items: center; gap: 5px; flex-wrap: wrap; padding: 7px 12px 6px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+/* Shared flag glyph — same box for both the Regions and Countries lists so
+   flags never render at two different sizes depending on which view you're in. */
+.flag-ic { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; line-height: 1; }
+/* Empty-state row shown when a search yields zero matches */
+.empty-row { padding: 22px 16px; text-align: center; color: var(--dim); font-size: var(--fs-sm); line-height: 1.5; }
+.empty-row b { color: var(--muted); font-weight: 500; }
 
 /* List items */
 .li {
   display: flex; align-items: center; gap: 5px;
   padding: 0 10px 0 10px; height: 36px; flex-shrink: 0;
-  border-bottom: 1px solid #0a0d13; transition: background .1s, border-left-color .1s;
+  border-bottom: 1px solid var(--divider); transition: background .1s, border-left-color .1s;
   cursor: pointer; border-left: 2px solid transparent;
 }
 .li:hover { background: var(--raised); }
@@ -193,16 +226,17 @@ aside.folded #resize-handle { display: none; }
 .li.rank-silver .lrank { color: #94a3b8; }
 .li.rank-bronze .lrank { color: #b45309; }
 /* Column widths — sized for up to 6-digit ranks / IDs */
-.lrank { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 36px; text-align: right; flex-shrink: 0; }
-.lid   { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 54px; text-align: right; flex-shrink: 0; }
-.lname { font-size: 11px; color: #9aa3b5; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrank { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--dim); width: 36px; text-align: right; flex-shrink: 0; }
+.lid   { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--muted); width: 54px; text-align: right; flex-shrink: 0; }
+.lname { font-size: var(--fs-sm); color: var(--text-secondary); flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.lname-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
 .lbar-w { width: 26px; flex-shrink: 0; }
 .lbar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.6; }
-.lval { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.lval { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 .lgo, .lwp {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--border); background: transparent;
-  color: var(--dim); cursor: pointer; font-size: 10px;
+  color: var(--dim); cursor: pointer; font-size: var(--fs-xs);
   display: flex; align-items: center; justify-content: center; transition: all .1s;
 }
 .lgo:hover, .lwp:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -211,7 +245,7 @@ aside.folded #resize-handle { display: none; }
 /* ── Stats tab ───────────────────────────────────────────── */
 .sect { padding: 12px 12px 0; }
 .sect-title {
-  font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px;
+  font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px;
   margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
 }
 .sect-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -219,46 +253,47 @@ aside.folded #resize-handle { display: none; }
 .scard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 12px 10px; }
 .scard { background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .scard.wide { grid-column: 1 / -1; }
-.scard .sl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-.scard .sv { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--cyan); line-height: 1.3; }
+.scard .sl { font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.scard .sv { font-family: var(--mono); font-size: var(--fs-lg); font-weight: 600; color: var(--cyan); line-height: 1.3; }
 .scard .sv.accent { color: var(--accent); }
 .scard .sv.green  { color: var(--green); }
 .scard .sv.orange { color: var(--orange); }
-.scard .sd { font-size: 10px; color: var(--dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scard .sv.muted  { color: var(--muted); }
+.scard .sd { font-size: var(--fs-xs); color: var(--dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Distribution bar */
 .dist-wrap { padding: 0 12px 10px; }
-.dist-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--dim); font-family: var(--mono); margin-bottom: 5px; }
+.dist-labels { display: flex; justify-content: space-between; font-size: var(--fs-2xs); color: var(--dim); font-family: var(--mono); margin-bottom: 5px; }
 .dist-bar { display: flex; height: 16px; border-radius: 5px; overflow: hidden; gap: 1px; }
 .dist-seg { flex: 1; position: relative; cursor: default; }
 .dist-seg:hover::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%);
   background: var(--surface); border: 1px solid var(--border); border-radius: 5px;
-  padding: 4px 7px; font-size: 9px; font-family: var(--mono); color: var(--text);
+  padding: 4px 7px; font-size: var(--fs-2xs); font-family: var(--mono); color: var(--text);
   white-space: nowrap; z-index: 20; pointer-events: none;
 }
 
 /* ── Info tab ────────────────────────────────────────────── */
-.info-block { padding: 0 12px 14px; font-size: 11.5px; line-height: 1.65; color: #9aa3b5; }
+.info-block { padding: 0 12px 14px; font-size: var(--fs-sm); line-height: 1.65; color: var(--text-secondary); }
 .info-block a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
 .info-block a:hover { border-bottom-color: var(--accent); }
 .info-steps { list-style: none; padding: 0 12px 4px; display: flex; flex-direction: column; gap: 10px; }
-.info-steps li { display: flex; gap: 9px; font-size: 11.5px; color: #9aa3b5; line-height: 1.55; }
+.info-steps li { display: flex; gap: 9px; font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.55; }
 .istep-num {
   flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px; margin-top: 1px;
   background: var(--raised); border: 1px solid var(--border); color: var(--accent);
-  font-family: var(--mono); font-size: 9px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: var(--fs-2xs); display: flex; align-items: center; justify-content: center;
 }
 kbd {
-  font-family: var(--mono); font-size: 9.5px; color: var(--text);
+  font-family: var(--mono); font-size: var(--fs-xs); color: var(--text);
   background: var(--raised); border: 1px solid var(--border); border-bottom-width: 2px;
   border-radius: 4px; padding: 1px 5px;
 }
-.credit-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid #0d1117; }
+.credit-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--surface); }
 .credit-row:last-child { border-bottom: none; }
-.credit-role { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
-.credit-name { font-size: 11px; color: #9aa3b5; }
+.credit-role { font-size: var(--fs-2xs); color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+.credit-name { font-size: var(--fs-sm); color: var(--text-secondary); }
 .credit-name a { color: var(--accent); text-decoration: none; }
 .credit-name a:hover { text-decoration: underline; }
 
@@ -274,8 +309,8 @@ kbd {
   cursor: pointer; transition: border-color .15s, background .15s;
 }
 #minfo-pill:hover { border-color: var(--muted); }
-#minfo-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-#minfo-date  { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 2px; }
+#minfo-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--muted); }
+#minfo-date  { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--dim); margin-top: 2px; }
 
 /* Heatmap-only toggle */
 #heatmap-toggle {
@@ -310,7 +345,7 @@ kbd {
 }
 .mleg-labels {
   display: flex; justify-content: space-between;
-  font-size: 9px; color: var(--muted); font-family: var(--mono); margin-top: 3px;
+  font-size: var(--fs-2xs); color: var(--muted); font-family: var(--mono); margin-top: 3px;
 }
 
 /* Map loading overlay */
@@ -323,7 +358,7 @@ kbd {
 }
 #mload.done { display: none; }
 #mload .spin { width: 18px; height: 18px; border: 2px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-#mload span { font-size: 13px; color: var(--muted); }
+#mload span { font-size: var(--fs-md); color: var(--muted); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -332,10 +367,10 @@ kbd {
 .leaflet-popup-tip-container { display: none; }
 .leaflet-popup-content { margin: 0 !important; }
 .pu { padding: 12px 14px; min-width: 160px; }
-.pu-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
-.pu-row { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
-.pu-row b { color: #94a3b8; font-weight: 500; }
-.pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; text-decoration: none; }
+.pu-name { font-size: var(--fs-md); font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.pu-row { font-size: var(--fs-sm); color: var(--muted); margin-bottom: 2px; }
+.pu-row b { color: var(--text-secondary); font-weight: 500; }
+.pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: var(--fs-sm); font-weight: 500; text-decoration: none; }
 .pu-link:hover { opacity: .85; }
 
 .leaflet-control-zoom a { background: var(--surface) !important; border-color: var(--border) !important; color: var(--muted) !important; }
@@ -358,9 +393,9 @@ kbd {
 #mwrap.has-slider .leaflet-bottom { bottom: 84px; }
 
 .ds-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.ds-header-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
-#ds-date { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
-#ds-pos  { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+.ds-header-label { font-size: var(--fs-2xs); color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+#ds-date { font-family: var(--mono); font-size: var(--fs-base); font-weight: 600; color: var(--text); flex: 1; }
+#ds-pos  { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--dim); }
 
 .ds-row { display: flex; align-items: center; gap: 10px; }
 .ds-nav {
@@ -402,7 +437,7 @@ kbd {
 #ds-ticks { position: relative; height: 20px; margin-top: 5px; }
 .ds-tick { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
 .ds-tick-mark { width: 1px; height: 4px; background: var(--dim); margin-bottom: 2px; }
-.ds-tick-label { font-size: 8px; font-family: var(--mono); color: var(--dim); white-space: nowrap; }
+.ds-tick-label { font-size: var(--fs-3xs); font-family: var(--mono); color: var(--dim); white-space: nowrap; }
 .ds-tick.current .ds-tick-mark { background: var(--accent); }
 .ds-tick.current .ds-tick-label { color: var(--accent); }
 
@@ -434,7 +469,7 @@ kbd {
   }
   #sidebar-reopen:hover { background: var(--accent); color: #fff; }
   #sidebar-reopen svg { transform: rotate(-90deg); }
-  #sidebar-reopen-label { display: inline; font-family: var(--font); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  #sidebar-reopen-label { display: inline; font-family: var(--font); font-size: var(--fs-md); font-weight: 600; white-space: nowrap; }
   body.has-slider #sidebar-reopen { bottom: 96px; }
 
   /* Bigger touch targets on the timeline slider */
@@ -447,6 +482,16 @@ kbd {
   .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
   #minfo-pill { top: max(14px, env(safe-area-inset-top)); }
   #heatmap-toggle { top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
+}
+
+/* Respect reduced-motion preferences: cut transitions/animations down to
+   the minimum needed for state to still register. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
 </head>
@@ -530,7 +575,7 @@ kbd {
       <svg id="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
-      <input id="searchinput" type="text" placeholder="Search name, ID or country…" oninput="onSearch(this.value)">
+      <input id="searchinput" type="text" placeholder="Search name, region ID or country…" oninput="onSearch(this.value)">
     </div>
     <div id="srcount"></div>
 
@@ -596,7 +641,7 @@ kbd {
       </div>
       <div class="scard">
         <div class="sl">P10 · 10th Percentile</div>
-        <div class="sv" style="color:var(--muted)" id="st-p10">—</div>
+        <div class="sv muted" id="st-p10">—</div>
         <div class="sd">bottom decile floor</div>
       </div>
       <div class="scard">
@@ -623,6 +668,11 @@ kbd {
         <div class="sl">Top Country by Pixels</div>
         <div class="sv" id="st-cty-top-px">—</div>
         <div class="sd" id="st-cty-top-px-name">—</div>
+      </div>
+      <div class="scard wide">
+        <div class="sl">Most Painted Country · avg px/region</div>
+        <div class="sv accent" id="st-cty-density">—</div>
+        <div class="sd" id="st-cty-density-name">—</div>
       </div>
       <div class="scard wide">
         <div class="sl">Most Regions in a Country</div>
@@ -657,7 +707,7 @@ kbd {
     <div class="sect"><div class="sect-title">How To Use</div></div>
     <ol class="info-steps">
       <li><span class="istep-num">1</span><span>Click any cell on the map — the hit area scales with zoom, so corners still register when you're zoomed in close.</span></li>
-      <li><span class="istep-num">2</span><span>Search by name, region ID, or country name, or sort by rank / region ID using the chips above the list.</span></li>
+      <li><span class="istep-num">2</span><span>Search by name, Region ID, or country name, or sort by rank / Region ID using the chips above the list.</span></li>
       <li><span class="istep-num">3</span><span>Click a row (or its locate button) to fly there and highlight it in the list — clicking the map does the same in reverse. The second button opens that region directly on wplace.live.</span></li>
       <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
       <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
@@ -677,7 +727,7 @@ kbd {
       <div class="credit-row"><span class="credit-role">Libraries</span><span class="credit-name">Leaflet · PapaParse</span></div>
     </div>
     <div class="info-block">
-      <p style="color:var(--dim);font-size:10.5px;">Unofficial fan-made dashboard — not affiliated with wplace.live.</p>
+      <p style="color:var(--dim);font-size:var(--fs-xs);">Unofficial fan-made dashboard — not affiliated with wplace.live.</p>
     </div>
     <div style="height:10px"></div>
 
@@ -818,6 +868,11 @@ const STOPS = [
   [0.85, [245,158, 11]],
   [1.00, [255, 45,111]],
 ];
+// The selection box reuses the gradient's own "high value" colour, kept as
+// a single derived constant so the two stay in sync if STOPS ever changes.
+const SELECTION_RGB = STOPS[STOPS.length - 1][1];
+const SELECTION_COLOR = `rgb(${SELECTION_RGB.join(',')})`;
+
 function gradRGB(t) {
   for (let i = 1; i < STOPS.length; i++) {
     const [t0,c0] = STOPS[i-1], [t1,c1] = STOPS[i];
@@ -950,6 +1005,8 @@ function setCtySort(key) {
   filterCountriesView(document.getElementById('searchinput').value);
 }
 
+// Scoped to [data-cty] only — kept separate from updateSortUI's [data-key]
+// selector so sorting one list never touches the other's active/arrow state.
 function updateCtySortUI() {
   document.querySelectorAll('[data-cty]').forEach(chip => {
     const isActive = chip.dataset.cty === ctySortKey;
@@ -969,9 +1026,13 @@ function setView(v) {
   document.getElementById('lc-panel').style.display   = isC ? 'block' : 'none';
   const si = document.getElementById('searchinput');
   si.value = '';
-  si.placeholder = isC ? 'Search country…' : 'Search name, ID or country…';
-  document.getElementById('srcount').textContent = '';
-  if (isC) { updateCtySortUI(); filterCountriesView(''); } else { if (vlist) vlist.filter(''); }
+  si.placeholder = isC ? 'Search country…' : 'Search name, region ID or country…';
+  const srEl = document.getElementById('srcount');
+  srEl.textContent = '';
+  srEl.classList.remove('empty-hint');
+  // Refresh sort-chip UI for whichever list is now visible, so switching
+  // tabs never leaves stale active/arrow state on the chips you can't see.
+  if (isC) { updateCtySortUI(); filterCountriesView(''); } else { updateSortUI(); if (vlist) vlist.filter(''); }
 }
 
 function setSort(key) {
@@ -985,6 +1046,8 @@ function setSort(key) {
   }
 }
 
+// Scoped to [data-key] only — see updateCtySortUI above for why these two
+// stay separate rather than sharing a single ".sort-chip" selector.
 function updateSortUI() {
   document.querySelectorAll('[data-key]').forEach(chip => {
     const isActive = chip.dataset.key === sortKey;
@@ -998,6 +1061,24 @@ function applySort(rows) {
     const av = sortKey==='rank' ? a.rank : sortKey==='id' ? a.regionId : a.pixels;
     const bv = sortKey==='rank' ? b.rank : sortKey==='id' ? b.regionId : b.pixels;
     return sortDir==='asc' ? av-bv : bv-av;
+  });
+}
+
+// ── Accessibility helper ────────────────────────────────────────────────
+// Both list types render plain <div> rows for performance (real <button>/<li>
+// elements would be heavier at these counts). That means the :focus-visible
+// CSS already defined for `.li` / `.cty-lb-row` has nothing to focus unless
+// we opt them into the tab order and wire up Enter/Space ourselves — this
+// does exactly that for any row, for either list.
+function makeActivatable(el, handler) {
+  el.tabIndex = 0;
+  el.setAttribute('role', 'button');
+  el.addEventListener('keydown', e => {
+    if (e.target !== el) return; // let nested buttons/links handle their own Enter/Space
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handler();
+    }
   });
 }
 
@@ -1030,13 +1111,32 @@ class VirtualList {
     this._paint();
     const n=this._rows.length, tot=this._all.length;
     const el=document.getElementById('srcount');
-    if (el) el.textContent = n<tot ? `${n.toLocaleString()} of ${tot.toLocaleString()} match` : `${n.toLocaleString()} regions`;
+    if (el) {
+      el.textContent = n<tot ? `${n.toLocaleString()} of ${tot.toLocaleString()} match` : `${n.toLocaleString()} regions`;
+      el.classList.toggle('empty-hint', n===0);
+    }
   }
 
   _paint() {
     const {_el:el,_ih:ih,_sp:sp,_in:inn,_rows:rows,_mx:mx}=this;
     const n=rows.length;
     sp.style.height=`${n*ih}px`;
+
+    // Empty state — a search with zero matches gets an explicit message
+    // instead of a silently blank panel.
+    if (!n) {
+      if (this._key === 'empty') return;
+      this._key = 'empty';
+      const q = document.getElementById('searchinput').value.trim();
+      inn.style.transform = 'translateY(0)';
+      inn.replaceChildren();
+      const row = document.createElement('div');
+      row.className = 'empty-row';
+      row.textContent = q ? `No regions match "${q}"` : 'No regions to show';
+      inn.appendChild(row);
+      return;
+    }
+
     const viewH=el.clientHeight||400, top=el.scrollTop;
     const start=Math.max(0,Math.floor(top/ih)-10);
     const end=Math.min(n,start+Math.ceil(viewH/ih)+15);
@@ -1056,17 +1156,20 @@ class VirtualList {
       div.className=cls;
       const pct=mx>0?(r.pixels/mx*100).toFixed(1):0;
       const hasUrl = !!r.url;
+      const flagHtml = r.countryId ? `<span class="flag-ic">${cFlag(r.countryId)}</span>` : '';
       div.innerHTML=
         `<span class="lrank">${r.rank}</span>`+
         `<span class="lid">#${r.regionId}</span>`+
-        `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${r.countryId?cFlag(r.countryId)+" ":""}${r.name}</span>`+
+        `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${flagHtml}<span class="lname-txt">${r.name}</span></span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
         `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
-      div.addEventListener('click', ()=>selectOrToggleRegion(cap));
-      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();selectOrToggleRegion(cap);});
+      const activate = () => selectOrToggleRegion(cap);
+      div.addEventListener('click', activate);
+      makeActivatable(div, activate);
+      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();activate();});
       if (hasUrl) div.querySelector('.lwp').addEventListener('click',e=>{e.stopPropagation();window.open(cap.url,'_blank','noopener,noreferrer');});
       frag.appendChild(div);
     }
@@ -1182,7 +1285,7 @@ let lastFailedAction = null; // 'discover' | { type: 'snapshot', idx }
 function setLoadError(msg) {
   document.getElementById('load-msg').textContent  = msg;
   document.getElementById('mload-msg').textContent = msg;
-  document.getElementById('load-bar').style.background = 'color-mix(in srgb,#f87171 12%,var(--raised))';
+  document.getElementById('load-bar').style.background = 'color-mix(in srgb, var(--red) 12%, var(--raised))';
   document.getElementById('load-spin').style.display  = 'none';
   document.getElementById('mload-spin').style.display = 'none';
   document.getElementById('load-retry').style.display  = 'inline-block';
@@ -1482,7 +1585,7 @@ function goToCountry(id) {
     return;
   }
 
-  const countryRows = rowsData.filter(r => r.countryId === id);
+  const countryRows = countryRegionsMap.get(id) || [];
   if (!countryRows.length) return;
 
   selectedCountryId = id;
@@ -1499,7 +1602,7 @@ function goToCountry(id) {
   getVlist().filter(nm);
 
   if (countryRows.length === 1) {
-    map.flyTo(countryRows[0]._ll, 10, { duration: 1.1 });
+    map.flyTo(countryRows[0]._ll, REGION_FLY_ZOOM, { duration: REGION_FLY_DURATION });
   } else {
     const bounds = L.latLngBounds(countryRows.map(r => r._ll));
     map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: 1.1 });
@@ -1509,13 +1612,23 @@ function goToCountry(id) {
 }
 
 let countryData = [];
+// countryId → array of that country's row objects, rebuilt once per snapshot
+// load. Both goToCountry() and the highlight-canvas painter used to run
+// their own full scan over rowsData (up to hundreds of thousands of rows)
+// every single time a country was clicked; this map turns that into an O(1)
+// lookup, reusing the single pass buildCountryData() already makes for stats.
+let countryRegionsMap = new Map();
 
 function buildCountryData(rows) {
   const tot={}, cnt={};
+  countryRegionsMap = new Map();
   for (const r of rows) {
     if (!r.countryId) continue;
     tot[r.countryId] = (tot[r.countryId]||0) + r.pixels;
     cnt[r.countryId] = (cnt[r.countryId]||0) + 1;
+    let bucket = countryRegionsMap.get(r.countryId);
+    if (!bucket) countryRegionsMap.set(r.countryId, bucket = []);
+    bucket.push(r);
   }
   countryData = Object.keys(tot)
     .map(id => ({id:+id, px:tot[id], n:cnt[id]}))
@@ -1532,16 +1645,29 @@ function filterCountriesView(q) {
     const bv = ctySortKey === 'px' ? b.px : b.n;
     return ctySortDir === 'asc' ? av - bv : bv - av;
   });
-  renderCountriesLeaderboard(base);
+  renderCountriesLeaderboard(base, q.trim());
   const el = document.getElementById('srcount');
-  if (el) el.textContent = base.length < countryData.length
-    ? `${base.length} of ${countryData.length} countries`
-    : `${countryData.length} countries`;
+  if (el) {
+    el.textContent = base.length < countryData.length
+      ? `${base.length} of ${countryData.length} countries`
+      : `${countryData.length} countries`;
+    el.classList.toggle('empty-hint', base.length===0);
+  }
 }
 
-function renderCountriesLeaderboard(list) {
+function renderCountriesLeaderboard(list, query) {
   const el = document.getElementById('lc-panel');
   if (!el) return;
+
+  if (!list.length) {
+    el.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'empty-row';
+    row.textContent = query ? `No countries match "${query}"` : 'No countries to show';
+    el.appendChild(row);
+    return;
+  }
+
   // Always use the global pixel max so bars stay proportional across sort changes
   const mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
   const frag = document.createDocumentFragment();
@@ -1551,12 +1677,14 @@ function renderCountriesLeaderboard(list) {
     const nm = cName(id) || 'Country ' + id;
     d.innerHTML =
       `<span class="lrank">${i+1}</span>`+
-      `<span style="font-size:15px;flex-shrink:0;width:20px;text-align:center;line-height:1">${cFlag(id)}</span>`+
-      `<span class="lname" title="${nm}">${nm}</span>`+
+      `<span class="flag-ic">${cFlag(id)}</span>`+
+      `<span class="lname" title="${nm}"><span class="lname-txt">${nm}</span></span>`+
       `<div class="lbar-w"><div class="lbar" style="width:${(px/mx*100).toFixed(1)}%"></div></div>`+
       `<span class="lval">${fmt(px)}</span>`+
       `<span class="cty-reg-cnt">${n.toLocaleString()} regions</span>`;
-    d.addEventListener('click', () => goToCountry(id));
+    const activate = () => goToCountry(id);
+    d.addEventListener('click', activate);
+    makeActivatable(d, activate);
     frag.appendChild(d);
   });
   el.replaceChildren(frag);
@@ -1576,12 +1704,22 @@ function renderCountryStats(rows) {
   const totalReg    = ids.reduce((s,id)=>s+cnt[id], 0);
   const topPxId     = ids.reduce((a,b)=>tot[a]>tot[b]?a:b);
   const topRegId    = ids.reduce((a,b)=>cnt[a]>cnt[b]?a:b);
+  // Painting density — total pixels ÷ that country's own region count.
+  // Distinct from "Top Country by Pixels" (a raw total, which a country
+  // can lead just by having more regions): this surfaces whichever
+  // country's regions are painted most intensely on average.
+  const density     = id => tot[id] / cnt[id];
+  const topDensityId = ids.reduce((a,b)=> density(a) > density(b) ? a : b);
   const set = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
   set('st-cty-count',        activeCount.toLocaleString());
   set('st-cty-avg-reg',      (totalReg/activeCount).toFixed(1));
   set('st-cty-top-px',       fmt(tot[topPxId]));
   set('st-cty-top-px-name',  `${cFlag(topPxId)} ${cName(topPxId)||'Country '+topPxId}`);
-  set('st-cty-top-reg',      cnt[topRegId].toLocaleString()+' regions');
+  set('st-cty-density',      fmt(Math.round(density(topDensityId))));
+  set('st-cty-density-name', `${cFlag(topDensityId)} ${cName(topDensityId)||'Country '+topDensityId}`);
+  // Value stays a bare number — matches every other .sv in this tab; the
+  // unit ("regions") lives only in the .sl caption above, same as elsewhere.
+  set('st-cty-top-reg',      cnt[topRegId].toLocaleString());
   set('st-cty-top-reg-name', `${cFlag(topRegId)} ${cName(topRegId)||'Country '+topRegId}`);
   set('st-cty-avg-px',       fmt(Math.round(totalPx/activeCount)));
 }
@@ -1592,8 +1730,8 @@ function updateSelectionMarker(regionId) {
   if (selectionRect) { map.removeLayer(selectionRect); selectionRect = null; }
   if (regionId == null) return;
   selectionRect = L.rectangle(regionCellBounds(regionId), {
-    pane: 'selectionPane', color: '#ff2d6f', weight: 3,
-    fill: true, fillColor: '#ff2d6f', fillOpacity: 0.25,
+    pane: 'selectionPane', color: SELECTION_COLOR, weight: 3,
+    fill: true, fillColor: SELECTION_COLOR, fillOpacity: 0.25,
     interactive: false
   }).addTo(map);
 }
@@ -1607,8 +1745,7 @@ function buildCountryHighlightCanvas(countryId) {
   const ctx = os.getContext('2d');
   const img = ctx.createImageData(512, 512); // fully transparent by default
   const d = img.data;
-  for (const row of rowsData) {
-    if (row.countryId !== countryId) continue;
+  for (const row of (countryRegionsMap.get(countryId) || [])) {
     const x = (row.regionId-1) % 512, y = (row.regionId-1)/512|0;
     if (x<0||x>511||y<0||y>511) continue;
     const idx = (y*512+x)*4;
@@ -1666,6 +1803,11 @@ function toggleHeatmapOnly() {
 }
 
 // ── flyTo ─────────────────────────────────────────────────
+// Single-region fly target: zoomed out slightly from a "block-level" zoom so
+// a selected region reads in more of its surrounding context.
+const REGION_FLY_ZOOM = 9;
+const REGION_FLY_DURATION = 1.0;
+
 // `suppressPopupClose` guards against the map's own popup-swap mechanism:
 // opening a new popup while one is already showing makes Leaflet close the
 // old one first (firing 'popupclose') before opening the new one. Without
@@ -1674,9 +1816,22 @@ function toggleHeatmapOnly() {
 let suppressPopupClose = false;
 
 function flyTo(r) {
-  map.flyTo(r._ll, 9, {duration:1.0});
+  map.flyTo(r._ll, REGION_FLY_ZOOM, {duration: REGION_FLY_DURATION});
   suppressPopupClose = true;
-  L.popup({maxWidth:230}).setLatLng(r._ll).setContent(`
+  L.popup({
+    maxWidth: 230,
+    // flyTo() above already re-centers the map on this exact latlng, so
+    // Leaflet's automatic "nudge the map so the popup is visible" behaviour
+    // is not just redundant here — opening the popup immediately (while the
+    // fly animation is still mid-flight) makes autoPan measure against the
+    // OLD, pre-animation view, decide the popup would be off-screen, and
+    // kick off a *second*, independent panBy() animation on top of the
+    // flyTo. Those two animations then fight over the map's position every
+    // frame, which is what actually produced the dragging/lag feeling
+    // (including making the selection box look laggy, since it's fighting
+    // to track a view that's being moved by two animations at once).
+    autoPan: false
+  }).setLatLng(r._ll).setContent(`
     <div class="pu">
       <div class="pu-name">${r.name}</div>
       <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
@@ -1747,19 +1902,29 @@ map.on('click', e => {
   if (row) selectRegion(row);
 });
 
-// ── Keep the selection box (and country wash) pixel-perfect during and
-// after any map movement ──────────────────────────────────────────────
-// Leaflet normally repositions vector layers and image overlays on its own,
-// but an in-flight flyTo() animation that gets interrupted by a manual pan
-// or zoom (the user "quickly moving the screen" right after selecting) can
-// leave the renderer's internal transform out of sync with the map's actual
-// position — the box then visually drifts from the grid cell it should be
-// covering. Forcing a full reprojection from the stored lat/lng bounds on
-// every move/zoom tick — and again once the view settles — guarantees the
-// box always snaps back to the exact cell regardless of how the view got there.
-map.on('move zoom moveend zoomend', () => {
+// ── Keep the selection box correctly positioned after map movement ────
+// Leaflet's SVG renderer already handles smooth, continuous repositioning
+// of vector layers during pans and animated zooms — including flyTo — on
+// its own, via a CSS transform applied to the whole renderer container.
+// That's the built-in mechanism, and it's what keeps the box visually
+// glued to the map while a flyTo animation is in flight.
+//
+// A previous version of this handler also called redraw() on every 'move'
+// and 'zoom' tick during the animation. That fights the renderer: redraw()
+// re-projects the box's raw SVG coordinates using the current in-between
+// zoom level, while the renderer is *simultaneously* applying its own
+// compensating transform on top of those same coordinates for the same
+// animation. The two corrections stack, and the box appears to lag,
+// freeze, or drift out of alignment with the tiles moving underneath it
+// instead of tracking smoothly — which is the bug this replaces.
+//
+// We only need a defensive re-projection once the view has actually
+// settled, to guard against the rare case of a flyTo animation getting
+// interrupted by a manual pan/zoom mid-flight.
+map.on('moveend zoomend', () => {
   if (selectionRect) selectionRect.redraw();
 });
+
 // ── Sidebar toggle ────────────────────────────────────────
 function toggleSidebar() {
   const asideEl = document.querySelector('aside');
