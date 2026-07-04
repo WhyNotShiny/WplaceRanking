@@ -117,8 +117,10 @@ else
     Console.WriteLine($"  → Full range: regions 1–262144.");
 }
 
-const string OWN_CKP    = "leaderboard_checkpoint.txt";
-string       OUTPUT_CSV = $"region_leaderboard_{DateTime.UtcNow:yyyy-MM-dd}.csv";
+const string OWN_CKP      = "leaderboard_checkpoint.txt";
+string       snapshotDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+string       OUTPUT_CSV   = $"region_leaderboard_{snapshotDate}.csv";
+const string MANIFEST_JSON = "Leaderboard_files\\manifest.json";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OWN CHECKPOINT — format: "regionId|pixelCount|regionName"
@@ -360,6 +362,9 @@ csvLines.AddRange(sorted.Select((kv, i) =>
 
 File.WriteAllLines(OUTPUT_CSV, csvLines);
 
+UpdateManifest(MANIFEST_JSON, snapshotDate);
+Console.WriteLine($"Manifest updated → {MANIFEST_JSON}");
+
 Console.WriteLine();
 Console.WriteLine($"Done — {sorted.Count:N0} regions → {OUTPUT_CSV}");
 
@@ -499,6 +504,38 @@ static Dictionary<int, long> ParseCountryLeaderboard(string json)
     return result;
 }
 
+// Reads manifest.json (a plain JSON array of "YYYY-MM-DD" strings), adds
+// today's date if not already present, and rewrites it sorted + deduped.
+// SortedSet<string> with ordinal comparison sorts "YYYY-MM-DD" strings
+// chronologically for free, same as the dashboard's own string sort.
+static void UpdateManifest(string manifestPath, string date)
+{
+    var dates = new SortedSet<string>(StringComparer.Ordinal);
+
+    if (File.Exists(manifestPath))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                foreach (var el in doc.RootElement.EnumerateArray())
+                    if (el.ValueKind == JsonValueKind.String)
+                        dates.Add(el.GetString()!);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[!] Failed to parse existing {manifestPath}: {ex.Message} — starting fresh.");
+        }
+    }
+
+    dates.Add(date);
+
+    // Manual JSON write — avoids JsonSerializer.Serialize<T>, which needs
+    // reflection and warns under AOT/trimming. Dates are always plain
+    // "YYYY-MM-DD" strings, so no escaping is needed.
+    string json = "[" + string.Join(",", dates.Select(d => $"\"{d}\"")) + "]";
+    File.WriteAllText(manifestPath, json);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SLOT

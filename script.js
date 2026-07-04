@@ -36,15 +36,23 @@ const REPO_DIR    = 'Leaderboard_files';   // sub-folder the CSVs actually live 
 // CSV files must be named exactly:  region_leaderboard_YYYY-MM-DD.csv
 const CSV_PREFIX  = 'region_leaderboard_';
 
-// Hardcoded fallback — used only if the GitHub API discovery call fails
-// (e.g. rate-limited), so the app doesn't get stuck on "Fetching…" forever.
-// Confirmed present in REPO_DIR as of this writing.
+// Preferred discovery source — a plain JSON array of date strings
+// (e.g. ["2026-06-22","2026-06-28"]) at this path in the repo, served over
+// raw.githubusercontent.com's CDN like the CSVs themselves. Unlike the
+// GitHub Contents API below, this has no per-hour rate limit. Whichever
+// script generates the CSVs should also write/update this file.
+const MANIFEST_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/manifest.json`;
+
+// Last-resort fallback — used only if BOTH the manifest above and the
+// GitHub API discovery call fail (e.g. manifest not created yet, or a
+// rate limit hit before it exists), so the app doesn't get stuck on
+// "Fetching…" forever. Confirmed present in REPO_DIR as of this writing.
 const FALLBACK_DATES = [
   '2026-06-22',
   '2026-06-28',
 ];
 
-// Populated automatically from the GitHub API on load — no manual editing needed.
+// Populated automatically on load — no manual editing needed.
 let SNAPSHOTS          = [];
 let usingFallbackDates = false; // true when discovery failed and FALLBACK_DATES was used instead
 const snapshotCache    = new Map(); // date → parsed rows (avoids re-fetching)
@@ -676,10 +684,30 @@ async function loadSnapshot(idx) {
 function stepSnapshot(dir) { loadSnapshot(currentSnapshotIdx + dir); }
 function onSliderInput(val) { loadSnapshot(parseInt(val)); }
 
-// ── Discover snapshots via GitHub Contents API ────────────
+// ── Discover snapshots via manifest.json (preferred) ────────
+// A tiny CDN-served JSON file listing available dates — no rate limit,
+// unlike the GitHub Contents API fallback below. Doesn't exist until
+// whatever generates the CSVs starts writing it.
+async function fetchSnapshotListFromManifest() {
+  const res = await fetch(MANIFEST_URL);
+  if (!res.ok) throw new Error(`manifest.json not found (HTTP ${res.status})`);
+  const dates = await res.json();
+  if (!Array.isArray(dates)) throw new Error('manifest.json is not a JSON array');
+  const list = dates
+    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort()
+    .map(date => ({
+      date,
+      url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
+    }));
+  if (!list.length) throw new Error('manifest.json contained no valid dates');
+  return list;
+}
+
+// ── Discover snapshots via GitHub Contents API (fallback) ──
 // Scans REPO_OWNER/REPO_NAME/REPO_DIR for files matching CSV_PREFIX + YYYY-MM-DD + .csv,
 // sorts them oldest → newest, and builds the SNAPSHOTS list automatically.
-// Just upload a new CSV to that folder — no code changes needed.
+// Rate-limited to 60 requests/hour per IP — only used when manifest.json is unavailable.
 async function fetchSnapshotList() {
   const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REPO_DIR}?ref=${REPO_BRANCH}`;
   const res = await fetch(apiUrl, {
@@ -714,23 +742,28 @@ async function discoverAndLoad() {
   document.getElementById('mload').classList.remove('done');
   document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
 
+  let usedFallback = false;
   try {
-    SNAPSHOTS = await fetchSnapshotList();
-    usingFallbackDates = false;
-  } catch (err) {
-    if (!FALLBACK_DATES.length) {
-      lastFailedAction = 'discover';
-      setLoadError(`Error: ${err.message}`);
-      return;
+    SNAPSHOTS = await fetchSnapshotListFromManifest();
+  } catch (manifestErr) {
+    try {
+      SNAPSHOTS = await fetchSnapshotList();
+    } catch (apiErr) {
+      if (!FALLBACK_DATES.length) {
+        lastFailedAction = 'discover';
+        setLoadError(`Error: ${apiErr.message}`);
+        return;
+      }
+      // Both manifest.json and the GitHub API failed — build SNAPSHOTS from
+      // the hardcoded list instead of hanging on "Fetching leaderboard…".
+      usedFallback = true;
+      SNAPSHOTS = [...FALLBACK_DATES].sort().map(date => ({
+        date,
+        url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
+      }));
     }
-    // Discovery failed (e.g. GitHub API rate limit) — build SNAPSHOTS from
-    // the hardcoded list instead of hanging on "Fetching leaderboard…".
-    usingFallbackDates = true;
-    SNAPSHOTS = [...FALLBACK_DATES].sort().map(date => ({
-      date,
-      url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
-    }));
   }
+  usingFallbackDates = usedFallback;
 
   currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest
   const n = SNAPSHOTS.length;
