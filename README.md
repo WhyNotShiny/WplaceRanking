@@ -7,7 +7,9 @@ to country level, and plots it all on a colour-coded map with historical snapsho
 step through over time.
 
 **Unofficial fan project — not affiliated with wplace.live.**
+
 **Completely vibe coded with Claude.**
+
 ---
 
 ## What's in this repo
@@ -106,3 +108,4 @@ If you fork this repo, update the repo config constants near the top of `script.
 - Map tiles: [CARTO](https://carto.com/) · [OpenStreetMap](https://openstreetmap.org/copyright)
 - Libraries: [Leaflet](https://leafletjs.com/) · [PapaParse](https://www.papaparse.com/)
 - Data: [wplace.live](https://wplace.live)
+- Regions json: [PRTSSourceCode](https://github.com/PRTSSourceCode/RegionDump/releases/tag/results)
