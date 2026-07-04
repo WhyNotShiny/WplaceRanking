@@ -87,8 +87,18 @@ else
 // INPUT — load charted region IDs from the scanner's checkpoint, or enter a range
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Console.Write("Scanner checkpoint file (blank = full range 1–262144): ");
-string? src = Console.ReadLine()?.Trim();
+// --auto (or a redirected stdin, which is what CI runners always have) skips
+// both prompts below: always sweep the full range, and always resume from
+// leaderboard_checkpoint.txt if one exists — that file exists purely to
+// survive a crash mid-run, so there's never a reason to ask about it.
+bool auto = args.Contains("--auto") || Console.IsInputRedirected;
+
+string? src = null;
+if (!auto)
+{
+    Console.Write("Scanner checkpoint file (blank = full range 1–262144): ");
+    src = Console.ReadLine()?.Trim();
+}
 
 List<int> allRegions;
 
@@ -117,10 +127,13 @@ else
     Console.WriteLine($"  → Full range: regions 1–262144.");
 }
 
-const string OWN_CKP      = "leaderboard_checkpoint.txt";
+const string OWN_CKP      = "leaderboard_checkpoint.txt"; // stays at repo root — working file, not committed
+const string OUTPUT_DIR   = "Leaderboard_files";          // ← CSVs + manifest.json both live here
 string       snapshotDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
-string       OUTPUT_CSV   = $"region_leaderboard_{snapshotDate}.csv";
-const string MANIFEST_JSON = "Leaderboard_files\\manifest.json";
+string       OUTPUT_CSV   = Path.Combine(OUTPUT_DIR, $"region_leaderboard_{snapshotDate}.csv");
+string       MANIFEST_JSON = Path.Combine(OUTPUT_DIR, "manifest.json");
+
+Directory.CreateDirectory(OUTPUT_DIR); // no-op if it already exists
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OWN CHECKPOINT — format: "regionId|pixelCount|regionName"
@@ -141,9 +154,18 @@ if (File.Exists(OWN_CKP))
         }
     }
 
-    Console.Write($"Resume from checkpoint? ({results.Count:N0} already done) [y/n]: ");
-    if (!string.Equals(Console.ReadLine()?.Trim(), "y", StringComparison.OrdinalIgnoreCase))
-        results.Clear();
+    bool resume;
+    if (auto)
+    {
+        resume = true;
+        Console.WriteLine($"[auto] Resuming from checkpoint ({results.Count:N0} already done).");
+    }
+    else
+    {
+        Console.Write($"Resume from checkpoint? ({results.Count:N0} already done) [y/n]: ");
+        resume = string.Equals(Console.ReadLine()?.Trim(), "y", StringComparison.OrdinalIgnoreCase);
+    }
+    if (!resume) results.Clear();
 }
 
 var pending  = allRegions.Where(r => !results.ContainsKey(r)).ToList();
@@ -229,7 +251,7 @@ var countryList = allCountryIds.Count > 0
     ? allCountryIds.ToList()
     : Enumerable.Range(1, 235).ToList();
 
-Console.Clear();
+try { Console.Clear(); } catch { } // throws when stdout is redirected (always true in CI)
 Console.WriteLine($"Slots     : {slots.Length}");
 Console.WriteLine($"Pending   : {pending.Count:N0} regions  ({results.Count:N0} in checkpoint)");
 Console.WriteLine($"Names     : {(regionNames.Count > 0 ? $"{regionNames.Count:N0} loaded from {REGIONS_JSON}" : $"{REGIONS_JSON} not found — falling back to #id")}");
