@@ -69,7 +69,7 @@ const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
 // edge region no longer snaps back the instant the viewport pokes past the
 // true world edge; it has to drift further before the pull-back kicks in.
 // WORLD_BOUNDS_MAIN itself stays exact since the overlays are pinned to it.
-const MAP_MAX_BOUNDS = L.latLngBounds(WORLD_BOUNDS_MAIN).pad(0.5);
+const MAP_MAX_BOUNDS = L.latLngBounds(WORLD_BOUNDS_MAIN).pad(0.2);
 
 // Mercator's projection clamps latitude to WORLD_LAT internally, which
 // made the padded maxBounds a no-op vertically (no clamp exists for
@@ -198,6 +198,7 @@ const ICON_EYE     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none
 const ICON_EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const ICON_MOON    = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>';
 const ICON_SUN     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>';
+const ICON_TREND   = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/></svg>';
 
 // ── Image overlay ─────────────────────────────────────────
 const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
@@ -425,12 +426,14 @@ class VirtualList {
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${fmt(r.pixels)}</span>`+
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
+        `<button class="ltrend" title="View pixel history">${ICON_TREND}</button>`+
         `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
       const activate = () => selectOrToggleRegion(cap);
       div.addEventListener('click', activate);
       makeActivatable(div, activate);
       div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();activate();});
+      div.querySelector('.ltrend').addEventListener('click',e=>{e.stopPropagation();openRegionTrend(cap.regionId);});
       if (hasUrl) div.querySelector('.lwp').addEventListener('click',e=>{e.stopPropagation();window.open(cap.url,'_blank','noopener,noreferrer');});
       frag.appendChild(div);
     }
@@ -938,6 +941,7 @@ function goToCountry(id) {
   }
 
   closeMobileSidebarIfNeeded();
+  openCountryTrend(id);
 }
 
 let countryData = [];
@@ -1177,6 +1181,167 @@ function initTheme() {
   applyTheme(current); // syncs button icon + map tiles with whatever <head> already set
 }
 
+// ── Trend panel (region or country) ────────────────────────
+// Builds a pixel-count-over-time chart by pulling one value out of every
+// available snapshot CSV — a single region's row, or a country's regions
+// summed. There's no separate history file — each date's full CSV has to
+// be downloaded once (same fetchCSV/parseCSVData pipeline as the main
+// loader) and the result lands in the same snapshotCache the timeline
+// slider uses, so browsing dates and opening trends for different
+// regions/countries all get cheaper over a session as more dates end up
+// cached.
+let trendMode        = null; // 'region' | 'country' | null
+let trendEntityId    = null; // the regionId or countryId currently shown
+let trendFetchToken  = 0;    // guards against overlapping fetches from rapid switching
+
+function isTrendPanelOpen() {
+  return !document.getElementById('trend-panel').classList.contains('closed');
+}
+
+function openRegionTrend(regionId) {
+  const row = rowById.get(regionId);
+  if (!row) return;
+  trendMode = 'region';
+  trendEntityId = regionId;
+  document.getElementById('trend-panel').classList.remove('closed');
+  document.getElementById('trend-title').textContent = row.name;
+  renderTrendLoading(0, SNAPSHOTS.length);
+  loadTrendSeries(
+    rows => { const r = rows.find(rr => rr.regionId === regionId); return r ? r.pixels : null; },
+    points => renderTrendChart(row.name, points)
+  );
+  closeMobileSidebarIfNeeded(); // room for the trend panel on a phone-width screen
+  setTimeout(() => map.invalidateSize(), 270); // matches the panel's width transition
+}
+
+function openCountryTrend(countryId) {
+  const nm = cName(countryId) || ('Country ' + countryId);
+  trendMode = 'country';
+  trendEntityId = countryId;
+  document.getElementById('trend-panel').classList.remove('closed');
+  document.getElementById('trend-title').textContent = nm;
+  renderTrendLoading(0, SNAPSHOTS.length);
+  loadTrendSeries(
+    rows => {
+      let sum = 0, any = false;
+      for (const r of rows) if (r.countryId === countryId) { sum += r.pixels; any = true; }
+      return any ? sum : null;
+    },
+    points => renderTrendChart(nm, points)
+  );
+  setTimeout(() => map.invalidateSize(), 270);
+}
+
+function closeTrendPanel() {
+  document.getElementById('trend-panel').classList.add('closed');
+  trendMode = null;
+  trendEntityId = null;
+  trendFetchToken++; // invalidate any fetch still in flight
+  setTimeout(() => map.invalidateSize(), 270);
+}
+
+function renderTrendLoading(done, total) {
+  document.getElementById('trend-body').innerHTML = `
+    <div id="trend-loading">
+      <div class="spin"></div>
+      <span>Loading history… ${done}/${total}</span>
+    </div>`;
+}
+
+// Shared driver: walks every snapshot (downloading + caching any not
+// already in snapshotCache), pulls one value per date via `extract(rows)`,
+// and hands the finished {date, pixels}[] series to `onDone`. `extract`
+// returning null leaves a gap in that date's line instead of a hard stop.
+async function loadTrendSeries(extract, onDone) {
+  const token = ++trendFetchToken;
+  const points = [];
+
+  for (let i = 0; i < SNAPSHOTS.length; i++) {
+    const snap = SNAPSHOTS[i];
+    let rows = snapshotCache.get(snap.date);
+
+    if (!rows) {
+      try {
+        const csvText = await fetchCSV(snap.url);
+        if (token !== trendFetchToken) return; // superseded mid-download
+        const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        rows = parseCSVData(data);
+        snapshotCache.set(snap.date, rows);
+      } catch (err) {
+        points.push({ date: snap.date, pixels: null }); // gap in the line, not a hard failure
+        if (token === trendFetchToken) renderTrendLoading(i + 1, SNAPSHOTS.length);
+        continue;
+      }
+    }
+
+    if (token !== trendFetchToken) return;
+    points.push({ date: snap.date, pixels: extract(rows) });
+    renderTrendLoading(i + 1, SNAPSHOTS.length);
+  }
+
+  if (token !== trendFetchToken) return;
+  onDone(points);
+}
+
+function renderTrendChart(label, points) {
+  const valid = points.filter(p => p.pixels != null);
+  if (!valid.length) {
+    document.getElementById('trend-body').innerHTML =
+      `<div class="empty-row">No pixel data available across any snapshot.</div>`;
+    return;
+  }
+
+  const W = 288, H = 168, padL = 46, padR = 10, padT = 14, padB = 26;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = points.length;
+
+  const xAt = i => padL + (n > 1 ? i * innerW / (n - 1) : innerW / 2);
+  const vals = valid.map(p => p.pixels);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = max - min || 1;
+  const yAt = px => (H - padB) - ((px - min) / span) * innerH;
+
+  // Build one <polyline> per unbroken run of non-null points, so a gap
+  // (a date whose CSV failed to load) breaks the line instead of
+  // stitching straight across missing data.
+  const segments = [];
+  let current = [];
+  points.forEach((p, i) => {
+    if (p.pixels == null) { if (current.length > 1) segments.push(current); current = []; return; }
+    current.push(`${xAt(i).toFixed(1)},${yAt(p.pixels).toFixed(1)}`);
+  });
+  if (current.length > 1) segments.push(current);
+  const polylines = segments.map(seg =>
+    `<polyline points="${seg.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>`
+  ).join('');
+
+  const dots = points.map((p, i) => p.pixels == null ? '' : `
+    <circle class="trend-dot" cx="${xAt(i).toFixed(1)}" cy="${yAt(p.pixels).toFixed(1)}" r="3.2">
+      <title>${fmtDate(p.date)}: ${p.pixels.toLocaleString()} px</title>
+    </circle>`).join('');
+
+  const first = valid[0].pixels, latest = valid[valid.length - 1].pixels;
+  const delta = latest - first;
+  const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
+  const deltaStr = (delta > 0 ? '+' : delta < 0 ? '−' : '±') + fmt(Math.abs(delta));
+
+  document.getElementById('trend-body').innerHTML = `
+    <div class="trend-summary">
+      <div class="trend-summary-val">${fmt(latest)}</div>
+      <div class="trend-summary-sub ${deltaClass}">${deltaStr} since first snapshot · ${n} snapshot${n===1?'':'s'}</div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" class="trend-svg">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" class="trend-axis-line"/>
+      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" class="trend-axis-line"/>
+      <text x="${padL-6}" y="${padT+4}" text-anchor="end" class="trend-axis-label">${fmt(max)}</text>
+      <text x="${padL-6}" y="${H-padB+4}" text-anchor="end" class="trend-axis-label">${fmt(min)}</text>
+      <text x="${xAt(0).toFixed(1)}" y="${H-8}" text-anchor="start" class="trend-axis-label">${fmtDate(points[0].date)}</text>
+      <text x="${xAt(n-1).toFixed(1)}" y="${H-8}" text-anchor="end" class="trend-axis-label">${fmtDate(points[n-1].date)}</text>
+      ${polylines}
+      ${dots}
+    </svg>`;
+}
+
 // ── flyTo ─────────────────────────────────────────────────
 // Single-region fly target: zoomed out slightly from a "block-level" zoom so
 // a selected region reads in more of its surrounding context.
@@ -1225,6 +1390,7 @@ function flyTo(r) {
       <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
       ${r.countryId?`<div class="pu-row"><b>Country</b> ${cFlag(r.countryId)} ${cName(r.countryId)}</div>`:""}
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
+      <button class="pu-trend-btn" onclick="openRegionTrend(${r.regionId})">Pixel history</button>
     </div>`).openOn(map);
   // The close-then-open swap above (if a popup was already showing) happens
   // fully synchronously, so it's safe to drop the guard immediately after.
@@ -1253,6 +1419,10 @@ function selectRegion(r, scroll) {
     if (scroll) vlist.scrollToRegion(r.regionId);
   }
   closeMobileSidebarIfNeeded();
+  // If the trend panel is already open (for this region, another region,
+  // or a country), switch it to follow the newly selected region instead
+  // of leaving it showing something stale.
+  if (isTrendPanelOpen()) openRegionTrend(r.regionId);
 }
 
 // Used by list rows only (not the map click handler, to avoid interfering
@@ -1378,6 +1548,7 @@ document.addEventListener('keydown', e => {
     map.closePopup();
     if (selectedRegionId != null) deselectRegion();
     if (selectedCountryId != null) deselectCountry();
+    if (trendMode != null) closeTrendPanel();
   } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement !== search && SNAPSHOTS.length > 1) {
     e.preventDefault();
     stepSnapshot(e.key === 'ArrowLeft' ? -1 : 1);

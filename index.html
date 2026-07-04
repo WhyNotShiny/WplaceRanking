@@ -102,6 +102,7 @@
       <span class="col-h" style="width:50px;text-align:right">Pixels</span>
       <span style="width:20px"></span>
       <span style="width:20px"></span>
+      <span style="width:20px"></span>
     </div>
 
     <div id="cty-col-heads">
@@ -270,6 +271,7 @@
       <li><span class="istep-num">9</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
       <li><span class="istep-num">10</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
       <li><span class="istep-num">11</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
+      <li><span class="istep-num">12</span><span>Click the trend icon on a region's row (or "Pixel history" in its map popup) to see how that region's pixel count has changed across every available snapshot, in a panel on the right. It has to download any snapshot dates not already cached, so the first time you open it for a fresh session it may take a moment.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
@@ -338,6 +340,16 @@
     </div>
   </div>
 </div>
+
+<aside id="trend-panel" class="closed">
+  <div id="trend-head">
+    <div id="trend-title">—</div>
+    <button id="trend-close" onclick="closeTrendPanel()" title="Close">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div id="trend-body"></div>
+</aside>
 
 </div>
 <script src="script.js"></script>

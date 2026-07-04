@@ -81,6 +81,46 @@ aside {
 }
 aside.folded { width: 0 !important; min-width: 0 !important; }
 
+/* Trend panel — a second, narrower aside on the right; uses its own
+   .closed class (not .folded) so its open/closed state is independent
+   of the left sidebar's. */
+#trend-panel {
+  width: 320px; min-width: 320px;
+  border-right: none; border-left: 1px solid var(--border);
+}
+#trend-panel.closed { width: 0 !important; min-width: 0 !important; border-left: none; }
+
+#trend-head { padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#trend-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#trend-close {
+  width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid var(--border); background: none;
+  color: var(--dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#trend-close:hover { color: var(--text); background: var(--raised); border-color: var(--muted); }
+
+#trend-body { flex: 1; overflow-y: auto; }
+#trend-body::-webkit-scrollbar { width: 3px; }
+#trend-body::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+#trend-loading { display: flex; align-items: center; gap: 9px; padding: 16px; }
+#trend-loading .spin { width: 14px; height: 14px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+#trend-loading span { font-size: var(--fs-sm); color: var(--muted); }
+
+.trend-summary { padding: 16px 16px 4px; }
+.trend-summary-val { font-family: var(--mono); font-size: var(--fs-num); font-weight: 600; color: var(--text); line-height: 1; letter-spacing: -1px; }
+.trend-summary-sub { font-size: var(--fs-xs); color: var(--muted); margin-top: 5px; }
+.trend-summary-sub.up   { color: var(--green); }
+.trend-summary-sub.down { color: var(--red); }
+
+.trend-svg { display: block; width: 100%; height: auto; padding: 4px 4px 16px; box-sizing: border-box; }
+.trend-axis-line { stroke: var(--border); stroke-width: 1; }
+.trend-axis-label { font-family: var(--mono); font-size: 8px; fill: var(--dim); }
+.trend-dot { fill: var(--accent); }
+.trend-dot:hover { fill: var(--cyan); }
+
 /* Header */
 #s-head { padding: 12px 12px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .s-head-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
@@ -264,13 +304,13 @@ aside.folded #resize-handle { display: none; }
 .lbar-w { width: 26px; flex-shrink: 0; }
 .lbar { height: 3px; background: var(--accent); border-radius: 2px; opacity: 0.6; }
 .lval { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
-.lgo, .lwp {
+.lgo, .lwp, .ltrend {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--border); background: transparent;
   color: var(--dim); cursor: pointer; font-size: var(--fs-xs);
   display: flex; align-items: center; justify-content: center; transition: all .1s;
 }
-.lgo:hover, .lwp:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.lgo:hover, .lwp:hover, .ltrend:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .lwp-off { opacity: .25; pointer-events: none; }
 
 /* ── Stats tab ───────────────────────────────────────────── */
@@ -426,6 +466,14 @@ kbd {
 .pu-row b { color: var(--text-secondary); font-weight: 500; }
 .pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: var(--fs-sm); font-weight: 500; text-decoration: none; }
 .pu-link:hover { opacity: .85; }
+.pu-trend-btn {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 4px 10px; border-radius: 5px; font-size: var(--fs-sm); font-weight: 500;
+  font-family: var(--font); cursor: pointer; text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.pu-trend-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .leaflet-control-zoom a { background: var(--surface) !important; border-color: var(--border) !important; color: var(--muted) !important; }
 .leaflet-control-zoom a:hover { background: var(--raised) !important; color: var(--text) !important; }
@@ -510,6 +558,18 @@ kbd {
   aside.folded { transform: translateY(100%); width: 100% !important; }
   #resize-handle { display: none; }
   #s-head { padding-top: max(12px, env(safe-area-inset-top)); }
+
+  /* Trend panel overrides the generic aside rules above: slides in from
+     the right instead of up from the bottom, and sits above the left
+     sidebar (higher z-index) since only one full-screen panel makes
+     sense open at a time on a phone-width screen. */
+  #trend-panel {
+    z-index: 750;
+    transform: translateX(100%);
+  }
+  #trend-panel:not(.closed) { transform: translateX(0); }
+  #trend-panel.closed { transform: translateX(100%); }
+  #trend-head { padding-top: max(12px, env(safe-area-inset-top)); }
 
   /* Reopen control becomes a centered floating pill, not an edge tab */
   #sidebar-reopen {
