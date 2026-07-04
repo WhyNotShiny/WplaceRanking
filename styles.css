@@ -27,6 +27,33 @@
   --fs-lg:  14px;  /* stat card values */
   --fs-num: 26px;  /* hero pixel counter */
 }
+
+/* ── Light theme ── same semantic roles, re-picked so the brightness ladder
+   (bg → dim → muted → text-secondary → text) still runs low-contrast to
+   high-contrast — just inverted, not a literal colour flip. Status/accent
+   hues are deepened slightly from their dark-mode values for AA contrast
+   against a white surface. */
+:root[data-theme="light"] {
+  --bg:      #f2f3f6;
+  --surface: #ffffff;
+  --raised:  #eef0f4;
+  --border:  #dde1e8;
+  --accent:  #6d5ef0;
+  --cyan:    #0e8fa6;
+  --green:   #059669;
+  --orange:  #c2790a;
+  --red:     #dc2626;
+  --text:    #14171f;
+  --text-secondary: #454c5e;
+  --muted:   #838ba0;
+  --dim:     #c7ccd6;
+  --divider: #eef0f4;
+}
+/* Hover highlights use a white-tint overlay in dark mode (lightens a dark
+   surface); on a near-white surface that's invisible, so light mode needs
+   the same effect built from black instead. */
+:root[data-theme="light"] .tab-btn:hover { background: color-mix(in srgb, black 4%, transparent); }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
 #app { display: flex; height: 100vh; }
@@ -59,6 +86,15 @@ aside.folded { width: 0 !important; min-width: 0 !important; }
 .s-head-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
 #s-head h1 { font-size: var(--fs-2xs); font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; min-width: 0; text-transform: uppercase; }
 #s-head h1 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
+.s-head-btns { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+#theme-toggle {
+  width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid var(--border); background: none;
+  color: var(--dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#theme-toggle:hover { color: var(--text); background: var(--raised); border-color: var(--muted); }
 #fold-btn {
   width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
   border: 1px solid var(--border); background: none;

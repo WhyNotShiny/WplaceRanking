@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wplace · Region Leaderboard</title>
+<script>
+// Runs synchronously before styles.css is applied, so a saved (or
+// system-preferred, on first visit) light preference takes effect
+// immediately instead of flashing dark-then-light.
+(function () {
+  try {
+    var saved = localStorage.getItem('wplace-theme');
+    var theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
@@ -19,9 +31,14 @@
   <div id="s-head">
     <div class="s-head-top">
       <h1><span class="dot"></span>Wplace Leaderboard</h1>
-      <button id="fold-btn" onclick="toggleSidebar()" title="Collapse sidebar">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
+      <div class="s-head-btns">
+        <button id="theme-toggle" onclick="toggleTheme()" title="Switch to light mode">
+          <svg id="theme-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+        </button>
+        <button id="fold-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
     </div>
     <div id="big-num" class="idle">—</div>
     <div id="big-label">total pixels painted</div>
@@ -246,12 +263,13 @@
       <li><span class="istep-num">2</span><span>Search by name, Region ID, or country name, or sort by rank / Region ID using the chips above the list.</span></li>
       <li><span class="istep-num">3</span><span>Click a row (or its locate button) to fly there and highlight it in the list — clicking the map does the same in reverse. The second button opens that region directly on wplace.live.</span></li>
       <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
-      <li><span class="istep-num">5</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
-      <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
-      <li><span class="istep-num">7</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
-      <li><span class="istep-num">8</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
-      <li><span class="istep-num">9</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
-      <li><span class="istep-num">10</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
+      <li><span class="istep-num">5</span><span>The sun/moon button in the sidebar header switches between light and dark mode. Your choice is remembered on this device.</span></li>
+      <li><span class="istep-num">6</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
+      <li><span class="istep-num">7</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
+      <li><span class="istep-num">8</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
+      <li><span class="istep-num">9</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
+      <li><span class="istep-num">10</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
+      <li><span class="istep-num">11</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>

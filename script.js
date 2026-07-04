@@ -69,7 +69,7 @@ const WORLD_BOUNDS_MAIN = [[WORLD_LAT2, -180], [WORLD_LAT, 180]];
 // edge region no longer snaps back the instant the viewport pokes past the
 // true world edge; it has to drift further before the pull-back kicks in.
 // WORLD_BOUNDS_MAIN itself stays exact since the overlays are pinned to it.
-const MAP_MAX_BOUNDS = L.latLngBounds(WORLD_BOUNDS_MAIN).pad(0.2);
+const MAP_MAX_BOUNDS = L.latLngBounds(WORLD_BOUNDS_MAIN).pad(0.5);
 
 // Mercator's projection clamps latitude to WORLD_LAT internally, which
 // made the padded maxBounds a no-op vertically (no clamp exists for
@@ -86,7 +86,12 @@ const map = L.map('map', {
 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+const TILE_URLS = {
+  dark:  { base: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',  labels: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png' },
+  light: { base: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', labels: 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png' }
+};
+
+const baseTileLayer = L.tileLayer(TILE_URLS.dark.base, {
   attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
   subdomains: 'abcd', maxZoom: 13, noWrap: true
 }).addTo(map);
@@ -94,7 +99,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
 map.createPane('labelsPane');
 map.getPane('labelsPane').style.zIndex = '450';
 map.getPane('labelsPane').style.pointerEvents = 'none';
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+const labelsTileLayer = L.tileLayer(TILE_URLS.dark.labels, {
   subdomains: 'abcd', maxZoom: 13, pane: 'labelsPane', noWrap: true
 }).addTo(map);
 
@@ -191,6 +196,8 @@ const ICON_LOCATE  = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none
 const ICON_EXTLINK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const ICON_EYE     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const ICON_EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+const ICON_MOON    = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>';
+const ICON_SUN     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>';
 
 // ── Image overlay ─────────────────────────────────────────
 const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
@@ -781,6 +788,7 @@ async function discoverAndLoad() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
+  initTheme();
   discoverAndLoad();
 });
 
@@ -1140,6 +1148,33 @@ function toggleHeatmapVisibility() {
   btn.classList.toggle('off', !heatmapVisible);
   btn.title = heatmapVisible ? 'Hide the pixel-count heatmap (keep the base map)' : 'Show the pixel-count heatmap';
   btn.innerHTML = heatmapVisible ? ICON_EYE : ICON_EYE_OFF;
+}
+
+// ── Theme (light/dark) ────────────────────────────────────
+// The inline script in <head> already applied a saved/system-preferred
+// theme to <html> before first paint (avoids a flash of the wrong theme);
+// this just keeps everything else — button icon, map tiles — in sync with
+// whatever attribute ended up set, and handles switching afterward.
+const THEME_KEY = 'wplace-theme';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  baseTileLayer.setUrl(TILE_URLS[theme].base);
+  labelsTileLayer.setUrl(TILE_URLS[theme].labels);
+  const btn = document.getElementById('theme-toggle');
+  btn.innerHTML = theme === 'light' ? ICON_SUN : ICON_MOON;
+  btn.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+}
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+
+function initTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(current); // syncs button icon + map tiles with whatever <head> already set
 }
 
 // ── flyTo ─────────────────────────────────────────────────
