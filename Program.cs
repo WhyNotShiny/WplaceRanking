@@ -555,7 +555,7 @@ static void UpdateManifest(string manifestPath, string date)
     // Manual JSON write — avoids JsonSerializer.Serialize<T>, which needs
     // reflection and warns under AOT/trimming. Dates are always plain
     // "YYYY-MM-DD" strings, so no escaping is needed.
-    string json = "[" + string.Join(",", dates.Select(d => $"\"{d}\"")) + "]";
+    string json = "[\n" + string.Join(",\n", dates.Select(d => $"  \"{d}\"")) + "\n]";
     File.WriteAllText(manifestPath, json);
 }
 
