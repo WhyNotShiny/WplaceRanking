@@ -250,7 +250,8 @@
       <li><span class="istep-num">6</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
       <li><span class="istep-num">7</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
       <li><span class="istep-num">8</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
-      <li><span class="istep-num">9</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
+      <li><span class="istep-num">9</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
+      <li><span class="istep-num">10</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
@@ -281,6 +282,11 @@
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  </button>
+  <button id="heatmap-vis-toggle" onclick="toggleHeatmapVisibility()" title="Hide the pixel-count heatmap (keep the base map)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   </button>
   <div id="minfo-pill" title="Click for data source & info">

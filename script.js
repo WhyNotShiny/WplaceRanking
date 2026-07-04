@@ -189,11 +189,14 @@ function animCount(el, to) {
 // ── Row action icons (used by the virtual list below) ──────
 const ICON_LOCATE  = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>';
 const ICON_EXTLINK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICON_EYE     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICON_EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
 // ── Image overlay ─────────────────────────────────────────
 const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
 let filledOverlays = [];
 let lastOverlayBlobUrl = null;
+let heatmapVisible = true; // toggled via toggleHeatmapVisibility(); persists across snapshot switches
 
 // Renders the 512×512 bitmap via toBlob()+ObjectURL instead of toDataURL() —
 // non-blocking, and skips the ~33% size overhead of base64 encoding.
@@ -202,7 +205,9 @@ function setFilledOverlay(canvas) {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     filledOverlays.forEach(o => map.removeLayer(o));
-    filledOverlays = [L.imageOverlay(url, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map)];
+    const overlay = L.imageOverlay(url, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map);
+    overlay.setOpacity(heatmapVisible ? 1 : 0);
+    filledOverlays = [overlay];
     if (lastOverlayBlobUrl) URL.revokeObjectURL(lastOverlayBlobUrl);
     lastOverlayBlobUrl = url;
   }, 'image/png');
@@ -1122,6 +1127,19 @@ function toggleHeatmapOnly() {
   heatmapOnly = !heatmapOnly;
   document.getElementById('map').classList.toggle('heatmap-only', heatmapOnly);
   document.getElementById('heatmap-toggle').classList.toggle('on', heatmapOnly);
+}
+
+// Hides just the coloured pixel-count overlay (opacity only, no rebuild
+// needed) while keeping the base map, labels, and any country highlight —
+// useful for seeing which regions a country actually spans without the
+// heatmap colouring obscuring region boundaries.
+function toggleHeatmapVisibility() {
+  heatmapVisible = !heatmapVisible;
+  filledOverlays.forEach(o => o.setOpacity(heatmapVisible ? 1 : 0));
+  const btn = document.getElementById('heatmap-vis-toggle');
+  btn.classList.toggle('off', !heatmapVisible);
+  btn.title = heatmapVisible ? 'Hide the pixel-count heatmap (keep the base map)' : 'Show the pixel-count heatmap';
+  btn.innerHTML = heatmapVisible ? ICON_EYE : ICON_EYE_OFF;
 }
 
 // ── flyTo ─────────────────────────────────────────────────

@@ -326,6 +326,22 @@ kbd {
 }
 #heatmap-toggle:hover { color: var(--text); border-color: var(--muted); }
 #heatmap-toggle.on { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+
+/* Heatmap-visibility toggle — hides the coloured overlay itself while
+   keeping the base map/labels, e.g. to see a country's region shapes
+   without the pixel-count colouring in the way. */
+#heatmap-vis-toggle {
+  position: absolute; top: 54px; left: 14px; z-index: 400;
+  width: 34px; height: 34px; border-radius: 7px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+  color: var(--dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#heatmap-vis-toggle:hover { color: var(--text); border-color: var(--muted); }
+#heatmap-vis-toggle.off { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+
 /* Hides the base map tiles + place labels, leaving just the coloured region overlay */
 #map.heatmap-only .leaflet-tile-pane,
 #map.heatmap-only .leaflet-labels-pane {
@@ -484,6 +500,7 @@ kbd {
   .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
   #minfo-pill { top: max(14px, env(safe-area-inset-top)); }
   #heatmap-toggle { top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
+  #heatmap-vis-toggle { top: max(54px, calc(env(safe-area-inset-top) + 40px)); left: max(14px, env(safe-area-inset-left)); }
 }
 
 /* Respect reduced-motion preferences: cut transitions/animations down to
