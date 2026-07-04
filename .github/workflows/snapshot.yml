@@ -1,0 +1,36 @@
+# .github/workflows/snapshot.yml
+name: Build leaderboard snapshot
+
+on:
+  schedule:
+    - cron: '0 1 * * 6'   # Saturdays, 01:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # needed to commit the new CSV + manifest back to the repo
+
+jobs:
+  build-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300   # 5h ceiling — comfortable margin over the ~2h real runtime
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run builder
+        run: dotnet run --project . -- --auto < /dev/null
+        # < /dev/null makes stdin empty+redirected even under `dotnet run`,
+        # which is what --auto detects — belt-and-suspenders with the flag.
+
+      - name: Commit new snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Leaderboard_files/*.csv Leaderboard_files/manifest.json
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Add leaderboard snapshot $(date -u +%Y-%m-%d)"
+          git push
