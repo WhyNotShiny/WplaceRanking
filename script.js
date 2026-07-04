@@ -926,7 +926,7 @@ function goToCountry(id) {
   } else {
     map._stop();
     const bounds = L.latLngBounds(countryRows.map(r => r._ll));
-    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: REGION_FLY_DURATION });
+    map.flyToBounds(bounds.pad(0.2), { maxZoom: REGION_FLY_ZOOM, duration: REGION_FLY_DURATION });
   }
 
   closeMobileSidebarIfNeeded();
