@@ -34,8 +34,8 @@ const int  MAX_MS_PER_TOKEN     = 5_000;
 const int  DEFAULT_COOLDOWN_MS  = 60_000;
 const int  MAX_NETWORK_RETRIES  = 4;
 const int  MAX_RATE_LIMIT_HITS  = 15;
-const int  PROGRESS_INTERVAL    = 20;
-const int  CHECKPOINT_INTERVAL  = 200;
+const int  PROGRESS_INTERVAL    = 500;
+const int  CHECKPOINT_INTERVAL  = 500;
 
 const string API = "https://backend.wplace.live";
 
