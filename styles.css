@@ -103,7 +103,7 @@ aside.folded { width: 0 !important; min-width: 0 !important; }
 
 #trend-body { flex: 1; overflow-y: auto; }
 #trend-body::-webkit-scrollbar { width: 3px; }
-#trend-body::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#trend-body::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
 
 #trend-loading { display: flex; align-items: center; gap: 9px; padding: 16px; }
 #trend-loading .spin { width: 14px; height: 14px; border: 1.5px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
@@ -205,7 +205,7 @@ aside.folded #resize-handle { display: none; }
 #panel-stats.active,
 #panel-info.active  { display: block; flex: 1; overflow-y: auto; }
 #panel-stats::-webkit-scrollbar, #panel-info::-webkit-scrollbar { width: 3px; }
-#panel-stats::-webkit-scrollbar-thumb, #panel-info::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#panel-stats::-webkit-scrollbar-thumb, #panel-info::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
 
 /* ── Sort bar ────────────────────────────────────────────── */
 #sort-bar {
@@ -255,10 +255,10 @@ aside.folded #resize-handle { display: none; }
 #lscroll { flex: 1; position: relative; overflow: hidden; }
 #lr-panel { position: absolute; inset: 0; overflow-y: auto; }
 #lr-panel::-webkit-scrollbar { width: 3px; }
-#lr-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#lr-panel::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
 #lc-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
 #lc-panel::-webkit-scrollbar { width: 3px; }
-#lc-panel::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+#lc-panel::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
 .cty-lb-row { display: flex; align-items: center; gap: 5px; padding: 0 10px 0 10px; height: 36px; flex-shrink: 0; border-bottom: 1px solid var(--divider); transition: background .1s, border-left-color .1s; cursor: pointer; border-left: 2px solid transparent; }
 .cty-lb-row:hover { background: var(--raised); }
 .cty-lb-row.selected { background: color-mix(in srgb, var(--accent) 10%, transparent); border-left-color: var(--accent); }

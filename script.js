@@ -1128,7 +1128,7 @@ function clearCountryHighlight() {
 // a region or country so the fly animation and map are actually visible.
 function closeMobileSidebarIfNeeded() {
   if (window.matchMedia('(max-width: 768px)').matches) {
-    const asideEl = document.querySelector('aside');
+    const asideEl = document.getElementById('sidebar');
     if (asideEl && !asideEl.classList.contains('folded')) toggleSidebar();
   }
 }
@@ -1483,7 +1483,7 @@ map.on('moveend zoomend', () => {
 
 // ── Sidebar toggle ────────────────────────────────────────
 function toggleSidebar() {
-  const asideEl = document.querySelector('aside');
+  const asideEl = document.getElementById('sidebar');
   const reopen  = document.getElementById('sidebar-reopen');
   const folded  = asideEl.classList.toggle('folded');
   reopen.style.display = folded ? 'flex' : 'none';
@@ -1496,14 +1496,14 @@ function toggleSidebar() {
 
 // Mobile starts with the sidebar collapsed so the map is the first thing seen.
 if (window.matchMedia('(max-width: 768px)').matches) {
-  document.querySelector('aside').classList.add('folded');
+  document.getElementById('sidebar').classList.add('folded');
   document.getElementById('sidebar-reopen').style.display = 'flex';
 }
 
 // ── Sidebar resize handle ─────────────────────────────────
 (function() {
   const handle  = document.getElementById('resize-handle');
-  const asideEl = document.querySelector('aside');
+  const asideEl = document.getElementById('sidebar');
   let dragging = false, startX = 0, startW = 0;
 
   handle.addEventListener('mousedown', e => {
@@ -1518,7 +1518,7 @@ if (window.matchMedia('(max-width: 768px)').matches) {
 
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    const newW = Math.min(620, Math.max(260, startW + e.clientX - startX));
+    const newW = Math.min(620, Math.max(320, startW + e.clientX - startX));
     asideEl.style.width    = newW + 'px';
     asideEl.style.minWidth = newW + 'px';
     document.documentElement.style.setProperty('--sw', newW + 'px');
