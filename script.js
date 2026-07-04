@@ -565,6 +565,15 @@ function retryLoad() {
 }
 
 // ── Snapshot loading ──────────────────────────────────────
+// Builds the same wplace.live deep-link the CSV's `url` column used to
+// store per row — lat/lng come straight from regionCoords(), so this is
+// only ever a fallback for CSVs that no longer include the (redundant,
+// fully-derivable) url column. Matches the historical format exactly:
+// https://wplace.live/?lat=<6dp>&lng=<6dp>&zoom=12
+function buildWplaceUrl(lat, lng) {
+  return `https://wplace.live/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&zoom=12`;
+}
+
 function parseCSVData(data) {
   const rows = data
     .filter(r => r.regionId)
@@ -574,9 +583,12 @@ function parseCSVData(data) {
       name:     r.name      || `Region #${r.regionId}`,
       pixels:   +r.pixels   || 0,
       countryId:+r.countryId || 0,
-      url:      r.url       || ''
+      url:      r.url       || '' // filled in below from regionCoords() if the CSV omits it
     }));
-  for (const r of rows) r._ll = regionCoords(r.regionId);
+  for (const r of rows) {
+    r._ll = regionCoords(r.regionId);
+    if (!r.url) r.url = buildWplaceUrl(r._ll[0], r._ll[1]);
+  }
   return rows;
 }
 
@@ -876,7 +888,7 @@ function goToCountry(id) {
   } else {
     map._stop();
     const bounds = L.latLngBounds(countryRows.map(r => r._ll));
-    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: 0.6 });
+    map.flyToBounds(bounds.pad(0.2), { maxZoom: 9, duration: REGION_FLY_DURATION });
   }
 
   closeMobileSidebarIfNeeded();
@@ -1083,7 +1095,7 @@ function toggleHeatmapOnly() {
 // Single-region fly target: zoomed out slightly from a "block-level" zoom so
 // a selected region reads in more of its surrounding context.
 const REGION_FLY_ZOOM = 9;
-const REGION_FLY_DURATION = 0.6;
+const REGION_FLY_DURATION = 0.5;
 
 // `suppressPopupClose` guards against the map's own popup-swap mechanism:
 // opening a new popup while one is already showing makes Leaflet close the

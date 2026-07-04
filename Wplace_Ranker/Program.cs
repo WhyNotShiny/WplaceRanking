@@ -350,13 +350,12 @@ var sorted = results
     .OrderByDescending(kv => kv.Value.pixels)
     .ToList();
 
-var csvLines = new List<string> { "rank,regionId,name,pixels,countryId,url" };
+var csvLines = new List<string> { "rank,regionId,name,pixels,countryId" };
 csvLines.AddRange(sorted.Select((kv, i) =>
 {
     string safeName  = kv.Value.name.Replace(",", " ").Replace("\"", "");
     string countryId = regionCountry.TryGetValue(kv.Key - 1, out var cid) ? cid.ToString() : "";
-    string url       = GetWplaceUrl(kv.Key);
-    return $"{i + 1},{kv.Key},{safeName},{kv.Value.pixels},{countryId},{url}";
+    return $"{i + 1},{kv.Key},{safeName},{kv.Value.pixels},{countryId}";
 }));
 
 File.WriteAllLines(OUTPUT_CSV, csvLines);
@@ -500,16 +499,6 @@ static Dictionary<int, long> ParseCountryLeaderboard(string json)
     return result;
 }
 
-// Convert a 1-based regionId to a wplace.live deep link centred on that tile.
-static string GetWplaceUrl(int regionId)
-{
-    int    tileX = (regionId - 1) % 512;
-    int    tileY = (regionId - 1) / 512;
-    double lng   = ((tileX + 0.5) / 512.0) * 360.0 - 180.0;
-    double n     = Math.PI - 2.0 * Math.PI * (tileY + 0.5) / 512.0;
-    double lat   = (180.0 / Math.PI) * Math.Atan(0.5 * (Math.Exp(n) - Math.Exp(-n)));
-    return $"https://wplace.live/?lat={lat:F6}&lng={lng:F6}&zoom=12";
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SLOT
