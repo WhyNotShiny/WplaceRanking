@@ -85,7 +85,7 @@ const map = L.map('map', {
   maxBounds: MAP_MAX_BOUNDS, maxBoundsViscosity: 0.3,
   zoomSnap: 0.25,          // allow quarter-level zoom instead of snapping to whole numbers
   zoomDelta: 0.25,         // +/- buttons and keyboard zoom move by the same finer increment
-  wheelPxPerZoomLevel: 60 // scroll wheel needs more travel per zoom level → smoother, less jumpy
+  wheelPxPerZoomLevel: 60  // back to Leaflet's default scroll-wheel sensitivity
 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -208,6 +208,7 @@ const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overla
 let filledOverlays = [];
 let lastOverlayBlobUrl = null;
 let heatmapVisible = true; // toggled via toggleHeatmapVisibility(); persists across snapshot switches
+let heatmapRefreshToken = 0; // guards refreshHeatmapOverlay() against overlapping fetches (rapid mode/date changes)
 
 // Renders the 512×512 bitmap via toBlob()+ObjectURL instead of toDataURL() —
 // non-blocking, and skips the ~33% size overhead of base64 encoding.
@@ -256,17 +257,24 @@ function switchTab(tab) {
 let sortKey = 'px', sortDir = 'desc';
 
 // Default direction when a column is first clicked
-const SORT_DEFAULTS = { px: 'desc', id: 'asc' };
+const SORT_DEFAULTS = { px: 'desc', id: 'asc', delta: 'desc' };
 
 let currentView = 'regions';
 let ctySortKey = 'px', ctySortDir = 'desc';
+
+// Populated (async) only once 'Change' sort is selected for either list —
+// see getRegionDeltaMap()/getCountryDeltaMap() further down.
+let regionDeltaById  = null; // Map<regionId, delta>
+let countryDeltaById = null; // Map<countryId, delta>
+let regionListToken  = 0;    // guards applyRegionSort() against overlapping fetches
+let countryListToken = 0;    // guards applyCountrySort() against overlapping fetches
 
 function setCtySort(key) {
   // Same key → toggle direction; new key → default to descending
   ctySortDir = (ctySortKey === key) ? (ctySortDir === 'asc' ? 'desc' : 'asc') : 'desc';
   ctySortKey = key;
   updateCtySortUI();
-  filterCountriesView(document.getElementById('searchinput').value);
+  applyCountrySort(true);
 }
 
 // Scoped to [data-cty] only — kept separate from updateSortUI's [data-key]
@@ -304,11 +312,7 @@ function setSort(key) {
   sortDir = (sortKey === key) ? (sortDir==='asc' ? 'desc' : 'asc') : SORT_DEFAULTS[key];
   sortKey = key;
   updateSortUI();
-  if (rowsData.length) {
-    const q = document.getElementById('searchinput').value;
-    getVlist().load(applySort(rowsData), maxPxGlobal);
-    if (q) getVlist().filter(q);
-  }
+  if (rowsData.length) applyRegionSort(true);
 }
 
 // Scoped to [data-key] only — see updateCtySortUI above for why these two
@@ -323,10 +327,147 @@ function updateSortUI() {
 
 function applySort(rows) {
   return [...rows].sort((a, b) => {
-    const av = sortKey==='id' ? a.regionId : a.pixels;
-    const bv = sortKey==='id' ? b.regionId : b.pixels;
+    const av = sortKey==='id' ? a.regionId : sortKey==='delta' ? (regionDeltaById ? (regionDeltaById.get(a.regionId) || 0) : 0) : a.pixels;
+    const bv = sortKey==='id' ? b.regionId : sortKey==='delta' ? (regionDeltaById ? (regionDeltaById.get(b.regionId) || 0) : 0) : b.pixels;
     return sortDir==='asc' ? av-bv : bv-av;
   });
+}
+
+// ── Delta (change-since-previous-snapshot) data ────────────
+// Shared by the heatmap's Δ mode, the regions list's "Change" sort, and
+// the countries list's "Change" sort — all three ultimately need the same
+// per-region deltas, so this is fetched/cached once per snapshot pairing
+// rather than up to three times. Cached by snapshot index, so switching
+// between the three consumers (or revisiting a date) reuses the same data.
+let regionDeltaCache = null; // { forSnapshotIdx, prevDate, map, countryMap }
+
+async function getRegionDeltaMap() {
+  if (currentSnapshotIdx <= 0) return null; // earliest snapshot — nothing earlier to diff against
+  if (regionDeltaCache && regionDeltaCache.forSnapshotIdx === currentSnapshotIdx) return regionDeltaCache;
+
+  const prevSnap = SNAPSHOTS[currentSnapshotIdx - 1];
+  let prevRows = snapshotCache.get(prevSnap.date);
+  if (!prevRows) {
+    const csvText = await fetchCSV(prevSnap.url);
+    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    prevRows = parseCSVData(data);
+    snapshotCache.set(prevSnap.date, prevRows);
+  }
+  const prevById = new Map(prevRows.map(r => [r.regionId, r.pixels]));
+  // Clamped to 0: a negative delta can only come from the top-50-per-region
+  // cap shifting who counts (see the Accuracy & Limitations note), not an
+  // actual loss of painted pixels, so it's treated as "no visible growth".
+  const map = new Map();
+  for (const r of rowsData) map.set(r.regionId, Math.max(0, r.pixels - (prevById.get(r.regionId) || 0)));
+  regionDeltaCache = { forSnapshotIdx: currentSnapshotIdx, prevDate: prevSnap.date, map, countryMap: null };
+  return regionDeltaCache;
+}
+
+async function getCountryDeltaMap() {
+  const info = await getRegionDeltaMap();
+  if (!info) return null;
+  if (!info.countryMap) {
+    const cmap = new Map();
+    for (const r of rowsData) {
+      if (!r.countryId) continue;
+      cmap.set(r.countryId, (cmap.get(r.countryId) || 0) + (info.map.get(r.regionId) || 0));
+    }
+    info.countryMap = cmap;
+  }
+  return { prevDate: info.prevDate, map: info.countryMap };
+}
+
+// Ensures the regions list reflects the current sortKey, fetching a
+// comparison snapshot first if sortKey==='delta' and it isn't cached yet.
+// Called both on explicit sort changes and from render() on every new
+// snapshot load (since a 'delta' sort's comparison pairing shifts whenever
+// the current date does).
+async function applyRegionSort(showLoadingUI) {
+  const token = ++regionListToken;
+
+  if (sortKey === 'delta') {
+    if (showLoadingUI) {
+      const srEl = document.getElementById('srcount');
+      srEl.textContent = 'Loading comparison snapshot…';
+      srEl.classList.remove('empty-hint');
+    }
+    let info;
+    try {
+      info = await getRegionDeltaMap();
+    } catch (err) {
+      if (token !== regionListToken || sortKey !== 'delta') return;
+      const srEl = document.getElementById('srcount');
+      srEl.textContent = "Couldn't load comparison snapshot.";
+      srEl.classList.add('empty-hint');
+      return;
+    }
+    if (token !== regionListToken || sortKey !== 'delta') return;
+    regionDeltaById = info ? info.map : null;
+  } else {
+    regionDeltaById = null;
+  }
+  if (token !== regionListToken) return;
+
+  document.getElementById('col-h-pixels').textContent = sortKey === 'delta' ? 'Change' : 'Pixels';
+
+  if (sortKey === 'delta' && !regionDeltaById) {
+    getVlist().load([], 1);
+    const srEl = document.getElementById('srcount');
+    srEl.textContent = 'No earlier snapshot to compare against.';
+    srEl.classList.add('empty-hint');
+    return;
+  }
+
+  let maxForBar = maxPxGlobal;
+  if (sortKey === 'delta') {
+    let m = 0;
+    for (const r of rowsData) { const d = regionDeltaById.get(r.regionId) || 0; if (d > m) m = d; }
+    maxForBar = m || 1;
+  }
+
+  const q = document.getElementById('searchinput').value;
+  getVlist().load(applySort(rowsData), maxForBar);
+  if (q) getVlist().filter(q);
+}
+
+// Countries-list equivalent of applyRegionSort() above.
+async function applyCountrySort(showLoadingUI) {
+  const token = ++countryListToken;
+
+  if (ctySortKey === 'delta') {
+    if (showLoadingUI) {
+      const srEl = document.getElementById('srcount');
+      srEl.textContent = 'Loading comparison snapshot…';
+      srEl.classList.remove('empty-hint');
+    }
+    let info;
+    try {
+      info = await getCountryDeltaMap();
+    } catch (err) {
+      if (token !== countryListToken || ctySortKey !== 'delta') return;
+      const srEl = document.getElementById('srcount');
+      srEl.textContent = "Couldn't load comparison snapshot.";
+      srEl.classList.add('empty-hint');
+      return;
+    }
+    if (token !== countryListToken || ctySortKey !== 'delta') return;
+    countryDeltaById = info ? info.map : null;
+  } else {
+    countryDeltaById = null;
+  }
+  if (token !== countryListToken) return;
+
+  document.getElementById('cty-col-h-pixels').textContent = ctySortKey === 'delta' ? 'Change' : 'Pixels';
+
+  if (ctySortKey === 'delta' && !countryDeltaById) {
+    filterCountriesView(document.getElementById('searchinput').value);
+    const srEl = document.getElementById('srcount');
+    srEl.textContent = 'No earlier snapshot to compare against.';
+    srEl.classList.add('empty-hint');
+    return;
+  }
+
+  filterCountriesView(document.getElementById('searchinput').value);
 }
 
 // ── Accessibility helper ────────────────────────────────────────────────
@@ -413,13 +554,22 @@ class VirtualList {
     for (let i=start;i<end;i++) {
       const r=rows[i];
       const div=document.createElement('div');
+      const isDelta = sortKey === 'delta' && regionDeltaById;
       let cls='li';
-      if (r.rank===1) cls+=' rank-gold';
-      else if (r.rank===2) cls+=' rank-silver';
-      else if (r.rank===3) cls+=' rank-bronze';
+      // Medal colours reflect cumulative rank — suppress them in delta
+      // mode so a region isn't misleadingly highlighted gold for a metric
+      // it's not actually top-3 in.
+      if (!isDelta) {
+        if (r.rank===1) cls+=' rank-gold';
+        else if (r.rank===2) cls+=' rank-silver';
+        else if (r.rank===3) cls+=' rank-bronze';
+      }
       if (r.regionId===selectedRegionId) cls+=' selected';
       div.className=cls;
-      const pct=mx>0?(r.pixels/mx*100).toFixed(1):0;
+      const deltaVal = isDelta ? (regionDeltaById.get(r.regionId) || 0) : null;
+      const barVal = isDelta ? deltaVal : r.pixels;
+      const pct=mx>0?(barVal/mx*100).toFixed(1):0;
+      const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : fmt(r.pixels);
       const hasUrl = !!r.url;
       const flagHtml = r.countryId ? `<span class="flag-ic">${cFlag(r.countryId)}</span>` : '';
       div.innerHTML=
@@ -427,7 +577,7 @@ class VirtualList {
         `<span class="lid">#${r.regionId}</span>`+
         `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${flagHtml}<span class="lname-txt">${r.name}</span></span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
-        `<span class="lval">${fmt(r.pixels)}</span>`+
+        `<span class="lval">${valText}</span>`+
         `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
         `<button class="ltrend" title="View pixel history">${ICON_TREND}</button>`+
         `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
@@ -830,12 +980,12 @@ function render(rows, snap) {
   }
 
   renderStats(rows, totalPx, maxPx);
-  setFilledOverlay(buildOffscreen(rows, maxPx));
+  refreshHeatmapOverlay();
 
   document.getElementById('searchinput').value = '';
-  getVlist().load(applySort(rows), maxPx);
   buildCountryData(rows);
-  if (currentView === 'countries') filterCountriesView('');
+  applyRegionSort(false);
+  if (currentView === 'countries') applyCountrySort(false);
 }
 
 // ── Stats tab ─────────────────────────────────────────────
@@ -978,8 +1128,8 @@ function filterCountriesView(q) {
   const base = s ? countryData.filter(c => cName(c.id).toLowerCase().includes(s)) : [...countryData];
   // Apply sort
   base.sort((a, b) => {
-    const av = ctySortKey === 'px' ? a.px : a.n;
-    const bv = ctySortKey === 'px' ? b.px : b.n;
+    const av = ctySortKey === 'px' ? a.px : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(a.id) || 0) : 0) : a.n;
+    const bv = ctySortKey === 'px' ? b.px : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(b.id) || 0) : 0) : b.n;
     return ctySortDir === 'asc' ? av - bv : bv - av;
   });
   renderCountriesLeaderboard(base, q.trim());
@@ -1005,24 +1155,41 @@ function renderCountriesLeaderboard(list, query) {
     return;
   }
 
-  // Always use the global pixel max so bars stay proportional across sort changes
-  const mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
+  const isDelta = ctySortKey === 'delta' && countryDeltaById;
+  // Always use the global max (pixels or delta, matching mode) so bars
+  // stay proportional across sort/filter changes.
+  let mx;
+  if (isDelta) {
+    mx = 0;
+    for (const c of countryData) { const d = countryDeltaById.get(c.id) || 0; if (d > mx) mx = d; }
+    mx = mx || 1;
+  } else {
+    mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
+  }
   const frag = document.createDocumentFragment();
   list.forEach(({id, px, n, rank}) => {
+    const deltaVal = isDelta ? (countryDeltaById.get(id) || 0) : null;
+    const barVal = isDelta ? deltaVal : px;
     const d = document.createElement('div');
     let cls = 'cty-lb-row';
-    if (rank===1) cls+=' rank-gold';
-    else if (rank===2) cls+=' rank-silver';
-    else if (rank===3) cls+=' rank-bronze';
+    // Medal colours reflect cumulative rank — suppress them in delta mode
+    // so a region isn't misleadingly highlighted gold for a metric it's
+    // not actually top-3 in.
+    if (!isDelta) {
+      if (rank===1) cls+=' rank-gold';
+      else if (rank===2) cls+=' rank-silver';
+      else if (rank===3) cls+=' rank-bronze';
+    }
     if (id === selectedCountryId) cls+=' selected';
     d.className = cls;
     const nm = cName(id) || 'Country ' + id;
+    const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : fmt(px);
     d.innerHTML =
       `<span class="lrank">${rank}</span>`+
       `<span class="lid"></span>`+
       `<span class="lname" title="${nm}"><span class="flag-ic">${cFlag(id)}</span><span class="lname-txt">${nm}</span></span>`+
-      `<div class="lbar-w"><div class="lbar" style="width:${(px/mx*100).toFixed(1)}%"></div></div>`+
-      `<span class="lval">${fmt(px)}</span>`+
+      `<div class="lbar-w"><div class="lbar" style="width:${(barVal/mx*100).toFixed(1)}%"></div></div>`+
+      `<span class="lval">${valText}</span>`+
       `<span class="cty-reg-cnt">${n.toLocaleString()}</span>`;
     const activate = () => goToCountry(id);
     d.addEventListener('click', activate);
@@ -1155,6 +1322,63 @@ function toggleHeatmapVisibility() {
   btn.classList.toggle('off', !heatmapVisible);
   btn.title = heatmapVisible ? 'Hide the pixel-count heatmap (keep the base map)' : 'Show the pixel-count heatmap';
   btn.innerHTML = heatmapVisible ? ICON_EYE : ICON_EYE_OFF;
+}
+
+// ── Heatmap mode (cumulative total vs. change since previous snapshot) ──
+// A purely cumulative map looks nearly identical for long stretches once
+// a region is mostly painted in — this mode instead colours each region
+// by how much it changed relative to the immediately preceding snapshot,
+// surfacing where activity is happening *now* rather than historically.
+let heatmapMode = 'cumulative'; // 'cumulative' | 'change'
+
+function toggleHeatmapMode() {
+  heatmapMode = heatmapMode === 'cumulative' ? 'change' : 'cumulative';
+  const btn = document.getElementById('heatmap-mode-toggle');
+  btn.classList.toggle('on', heatmapMode === 'change');
+  btn.title = heatmapMode === 'change'
+    ? 'Showing change since previous snapshot — click for total pixels'
+    : 'Showing total pixels — click for change since previous snapshot';
+  refreshHeatmapOverlay();
+}
+
+// Rebuilds the map overlay for whichever mode is active. In 'change' mode
+// this needs the immediately preceding snapshot's rows, downloading and
+// caching them (same fetchCSV/parseCSVData/snapshotCache pipeline as
+// everywhere else) if they aren't already cached from browsing dates or
+// viewing a trend panel.
+async function refreshHeatmapOverlay() {
+  if (!rowsData.length) return;
+  const token = ++heatmapRefreshToken;
+
+  if (heatmapMode === 'cumulative') {
+    document.getElementById('mlegend-mode').textContent = 'Total pixels';
+    setFilledOverlay(buildOffscreen(rowsData, maxPxGlobal));
+    return;
+  }
+
+  document.getElementById('mlegend-mode').textContent = 'Loading comparison…';
+
+  let info;
+  try {
+    info = await getRegionDeltaMap();
+  } catch (err) {
+    if (token !== heatmapRefreshToken) return;
+    document.getElementById('mlegend-mode').textContent = 'Change (comparison failed to load)';
+    return;
+  }
+  if (token !== heatmapRefreshToken) return;
+
+  if (!info) {
+    // Earliest available snapshot — nothing earlier exists to diff against.
+    document.getElementById('mlegend-mode').textContent = 'Change (no earlier snapshot)';
+    setFilledOverlay(buildOffscreen([], 1));
+    return;
+  }
+
+  const deltaRows = rowsData.map(r => ({ regionId: r.regionId, pixels: info.map.get(r.regionId) || 0 }));
+  const maxDelta = deltaRows.reduce((m, r) => Math.max(m, r.pixels), 0) || 1;
+  document.getElementById('mlegend-mode').textContent = `Change since ${fmtDate(info.prevDate)}`;
+  setFilledOverlay(buildOffscreen(deltaRows, maxDelta));
 }
 
 // ── Theme (light/dark) ────────────────────────────────────

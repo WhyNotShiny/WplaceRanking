@@ -86,12 +86,14 @@
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-key="px" onclick="setSort('px')">Pixels <span class="arr">▼</span></button>
       <button class="sort-chip" data-key="id" onclick="setSort('id')">Region ID <span class="arr"></span></button>
+      <button class="sort-chip" data-key="delta" onclick="setSort('delta')">Change <span class="arr"></span></button>
     </div>
 
     <div id="cty-sort-bar">
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-cty="px" onclick="setCtySort('px')">Pixels <span class="arr">▼</span></button>
       <button class="sort-chip" data-cty="n" onclick="setCtySort('n')">Regions <span class="arr"></span></button>
+      <button class="sort-chip" data-cty="delta" onclick="setCtySort('delta')">Change <span class="arr"></span></button>
     </div>
 
     <div id="col-heads">
@@ -99,7 +101,7 @@
       <span class="col-h" style="width:54px;text-align:right">ID</span>
       <span class="col-h" style="flex:1;padding-left:4px">Name</span>
       <span style="width:26px"></span>
-      <span class="col-h" style="width:50px;text-align:right">Pixels</span>
+      <span class="col-h" id="col-h-pixels" style="width:50px;text-align:right">Pixels</span>
       <span style="width:20px"></span>
       <span style="width:20px"></span>
       <span style="width:20px"></span>
@@ -110,7 +112,7 @@
       <span class="col-h" style="width:54px"></span>
       <span class="col-h" style="flex:1;padding-left:4px">Name</span>
       <span style="width:26px"></span>
-      <span class="col-h" style="width:50px;text-align:right">Pixels</span>
+      <span class="col-h" id="cty-col-h-pixels" style="width:50px;text-align:right">Pixels</span>
       <span class="col-h" style="width:64px;text-align:right">Regions</span>
     </div>
 
@@ -272,6 +274,8 @@
       <li><span class="istep-num">10</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
       <li><span class="istep-num">11</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
       <li><span class="istep-num">12</span><span>Click the trend icon on a region's row (or "Pixel history" in its map popup) to see how that region's pixel count has changed across every available snapshot, in a panel on the right. It has to download any snapshot dates not already cached, so the first time you open it for a fresh session it may take a moment.</span></li>
+      <li><span class="istep-num">13</span><span>The Δ button switches the map's heatmap from total pixels (which barely changes once a region fills in) to change since the previous snapshot — useful for spotting where activity is happening right now rather than where it happened historically. It needs the prior snapshot downloaded to compare against, so switching modes may take a moment on a fresh session, and it shows nothing on the very first available snapshot (there's nothing earlier to compare it to).</span></li>
+      <li><span class="istep-num">14</span><span>Both lists have a "Change" sort option alongside Pixels, ranking regions or countries by growth since the previous snapshot instead of their all-time total — the same comparison data the Δ heatmap uses, so switching between the two doesn't re-download anything twice.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
@@ -309,11 +313,13 @@
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   </button>
+  <button id="heatmap-mode-toggle" onclick="toggleHeatmapMode()" title="Show change since the previous snapshot instead of total pixels">Δ</button>
   <div id="minfo-pill" title="Click for data source & info">
     <div id="minfo-count">— regions</div>
     <div id="minfo-date">—</div>
   </div>
   <div id="mlegend">
+    <div id="mlegend-mode">Total pixels</div>
     <div id="mlegend-bar"></div>
     <div class="mleg-labels"><span>Low</span><span>High</span></div>
   </div>
