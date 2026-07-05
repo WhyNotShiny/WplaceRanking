@@ -94,6 +94,7 @@
       <button class="sort-chip active" data-cty="px" onclick="setCtySort('px')">Pixels <span class="arr">▼</span></button>
       <button class="sort-chip" data-cty="n" onclick="setCtySort('n')">Regions <span class="arr"></span></button>
       <button class="sort-chip" data-cty="delta" onclick="setCtySort('delta')">Change <span class="arr"></span></button>
+      <button class="sort-chip" data-cty="avg" onclick="setCtySort('avg')" title="Average pixels per region — how intensely a country's regions are painted on average, not a bounded occupation percentage">Avg/Region <span class="arr"></span></button>
     </div>
 
     <div id="col-heads">
@@ -276,6 +277,7 @@
       <li><span class="istep-num">12</span><span>Click the trend icon on a region's row (or "Pixel history" in its map popup) to see how that region's pixel count has changed across every available snapshot, in a panel on the right. It has to download any snapshot dates not already cached, so the first time you open it for a fresh session it may take a moment.</span></li>
       <li><span class="istep-num">13</span><span>The Δ button switches the map's heatmap from total pixels (which barely changes once a region fills in) to change since the previous snapshot — useful for spotting where activity is happening right now rather than where it happened historically. It needs the prior snapshot downloaded to compare against, so switching modes may take a moment on a fresh session, and it shows nothing on the very first available snapshot (there's nothing earlier to compare it to).</span></li>
       <li><span class="istep-num">14</span><span>Both lists have a "Change" sort option alongside Pixels, ranking regions or countries by growth since the previous snapshot instead of their all-time total — the same comparison data the Δ heatmap uses, so switching between the two doesn't re-download anything twice.</span></li>
+      <li><span class="istep-num">15</span><span>The Countries list also has an "Avg/Region" sort — total pixels divided by that country's own region count, ranking which countries paint their regions most intensely on average rather than which have the highest raw total (which a country can lead just by having more regions). It's an average pixel count, not a bounded occupation percentage, since the actual maximum pixel capacity per region isn't part of this data.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>

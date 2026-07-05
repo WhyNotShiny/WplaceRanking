@@ -340,27 +340,47 @@ function applySort(rows) {
 // rather than up to three times. Cached by snapshot index, so switching
 // between the three consumers (or revisiting a date) reuses the same data.
 let regionDeltaCache = null; // { forSnapshotIdx, prevDate, map, countryMap }
+let regionDeltaInFlight = null; // { forSnapshotIdx, promise } — de-dupes concurrent callers
 
 async function getRegionDeltaMap() {
   if (currentSnapshotIdx <= 0) return null; // earliest snapshot — nothing earlier to diff against
   if (regionDeltaCache && regionDeltaCache.forSnapshotIdx === currentSnapshotIdx) return regionDeltaCache;
 
-  const prevSnap = SNAPSHOTS[currentSnapshotIdx - 1];
-  let prevRows = snapshotCache.get(prevSnap.date);
-  if (!prevRows) {
-    const csvText = await fetchCSV(prevSnap.url);
-    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-    prevRows = parseCSVData(data);
-    snapshotCache.set(prevSnap.date, prevRows);
+  // The heatmap's Δ mode and both lists' "Change" sort can all call this
+  // for the same snapshot pairing from the same render() — share one
+  // in-flight fetch instead of letting each kick off its own concurrent
+  // download of the identical comparison CSV.
+  if (regionDeltaInFlight && regionDeltaInFlight.forSnapshotIdx === currentSnapshotIdx) {
+    return regionDeltaInFlight.promise;
   }
-  const prevById = new Map(prevRows.map(r => [r.regionId, r.pixels]));
-  // Clamped to 0: a negative delta can only come from the top-50-per-region
-  // cap shifting who counts (see the Accuracy & Limitations note), not an
-  // actual loss of painted pixels, so it's treated as "no visible growth".
-  const map = new Map();
-  for (const r of rowsData) map.set(r.regionId, Math.max(0, r.pixels - (prevById.get(r.regionId) || 0)));
-  regionDeltaCache = { forSnapshotIdx: currentSnapshotIdx, prevDate: prevSnap.date, map, countryMap: null };
-  return regionDeltaCache;
+
+  const forSnapshotIdx = currentSnapshotIdx;
+  const promise = (async () => {
+    const prevSnap = SNAPSHOTS[forSnapshotIdx - 1];
+    let prevRows = snapshotCache.get(prevSnap.date);
+    if (!prevRows) {
+      const csvText = await fetchCSV(prevSnap.url);
+      const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      prevRows = parseCSVData(data);
+      snapshotCache.set(prevSnap.date, prevRows);
+    }
+    const prevById = new Map(prevRows.map(r => [r.regionId, r.pixels]));
+    // Clamped to 0: a negative delta can only come from the top-50-per-region
+    // cap shifting who counts (see the Accuracy & Limitations note), not an
+    // actual loss of painted pixels, so it's treated as "no visible growth".
+    const map = new Map();
+    for (const r of rowsData) map.set(r.regionId, Math.max(0, r.pixels - (prevById.get(r.regionId) || 0)));
+    const result = { forSnapshotIdx, prevDate: prevSnap.date, map, countryMap: null };
+    regionDeltaCache = result;
+    return result;
+  })();
+
+  regionDeltaInFlight = { forSnapshotIdx, promise };
+  try {
+    return await promise;
+  } finally {
+    if (regionDeltaInFlight && regionDeltaInFlight.forSnapshotIdx === forSnapshotIdx) regionDeltaInFlight = null;
+  }
 }
 
 async function getCountryDeltaMap() {
@@ -457,7 +477,8 @@ async function applyCountrySort(showLoadingUI) {
   }
   if (token !== countryListToken) return;
 
-  document.getElementById('cty-col-h-pixels').textContent = ctySortKey === 'delta' ? 'Change' : 'Pixels';
+  document.getElementById('cty-col-h-pixels').textContent =
+    ctySortKey === 'delta' ? 'Change' : ctySortKey === 'avg' ? 'Avg/Region' : 'Pixels';
 
   if (ctySortKey === 'delta' && !countryDeltaById) {
     filterCountriesView(document.getElementById('searchinput').value);
@@ -1128,8 +1149,14 @@ function filterCountriesView(q) {
   const base = s ? countryData.filter(c => cName(c.id).toLowerCase().includes(s)) : [...countryData];
   // Apply sort
   base.sort((a, b) => {
-    const av = ctySortKey === 'px' ? a.px : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(a.id) || 0) : 0) : a.n;
-    const bv = ctySortKey === 'px' ? b.px : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(b.id) || 0) : 0) : b.n;
+    const av = ctySortKey === 'px' ? a.px
+      : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(a.id) || 0) : 0)
+      : ctySortKey === 'avg' ? (a.n ? a.px / a.n : 0)
+      : a.n;
+    const bv = ctySortKey === 'px' ? b.px
+      : ctySortKey === 'delta' ? (countryDeltaById ? (countryDeltaById.get(b.id) || 0) : 0)
+      : ctySortKey === 'avg' ? (b.n ? b.px / b.n : 0)
+      : b.n;
     return ctySortDir === 'asc' ? av - bv : bv - av;
   });
   renderCountriesLeaderboard(base, q.trim());
@@ -1156,12 +1183,17 @@ function renderCountriesLeaderboard(list, query) {
   }
 
   const isDelta = ctySortKey === 'delta' && countryDeltaById;
-  // Always use the global max (pixels or delta, matching mode) so bars
-  // stay proportional across sort/filter changes.
+  const isAvg   = ctySortKey === 'avg';
+  // Always use the global max (matching whichever metric is active) so
+  // bars stay proportional across sort/filter changes.
   let mx;
   if (isDelta) {
     mx = 0;
     for (const c of countryData) { const d = countryDeltaById.get(c.id) || 0; if (d > mx) mx = d; }
+    mx = mx || 1;
+  } else if (isAvg) {
+    mx = 0;
+    for (const c of countryData) { const v = c.n ? c.px / c.n : 0; if (v > mx) mx = v; }
     mx = mx || 1;
   } else {
     mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
@@ -1169,13 +1201,14 @@ function renderCountriesLeaderboard(list, query) {
   const frag = document.createDocumentFragment();
   list.forEach(({id, px, n, rank}) => {
     const deltaVal = isDelta ? (countryDeltaById.get(id) || 0) : null;
-    const barVal = isDelta ? deltaVal : px;
+    const avgVal   = isAvg ? (n ? px / n : 0) : null;
+    const barVal = isDelta ? deltaVal : isAvg ? avgVal : px;
     const d = document.createElement('div');
     let cls = 'cty-lb-row';
-    // Medal colours reflect cumulative rank — suppress them in delta mode
-    // so a region isn't misleadingly highlighted gold for a metric it's
-    // not actually top-3 in.
-    if (!isDelta) {
+    // Medal colours reflect cumulative pixel rank — suppress them for
+    // delta/avg modes so a country isn't misleadingly highlighted gold
+    // for a metric it's not actually top-3 in.
+    if (!isDelta && !isAvg) {
       if (rank===1) cls+=' rank-gold';
       else if (rank===2) cls+=' rank-silver';
       else if (rank===3) cls+=' rank-bronze';
@@ -1183,7 +1216,7 @@ function renderCountriesLeaderboard(list, query) {
     if (id === selectedCountryId) cls+=' selected';
     d.className = cls;
     const nm = cName(id) || 'Country ' + id;
-    const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : fmt(px);
+    const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : isAvg ? fmt(avgVal) : fmt(px);
     d.innerHTML =
       `<span class="lrank">${rank}</span>`+
       `<span class="lid"></span>`+
