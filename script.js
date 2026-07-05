@@ -82,7 +82,10 @@ const PaddedCRS = L.extend({}, L.CRS.EPSG3857, { projection: PaddedMercator });
 const map = L.map('map', {
   crs: PaddedCRS,
   zoomControl: false, center: [25, 10], zoom: 2,
-  maxBounds: MAP_MAX_BOUNDS, maxBoundsViscosity: 0.3
+  maxBounds: MAP_MAX_BOUNDS, maxBoundsViscosity: 0.3,
+  zoomSnap: 0.25,          // allow quarter-level zoom instead of snapping to whole numbers
+  zoomDelta: 0.25,         // +/- buttons and keyboard zoom move by the same finer increment
+  wheelPxPerZoomLevel: 60 // scroll wheel needs more travel per zoom level → smoother, less jumpy
 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
