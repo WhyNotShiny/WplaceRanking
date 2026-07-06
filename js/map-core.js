@@ -1,0 +1,171 @@
+// map-core.js — the Leaflet map instance, tile layers, panes, heatmap
+// gradient math, region↔lat/lng coordinate conversion, number formatting,
+// icon SVGs, and the canvas-based heatmap overlay renderer.
+// Requires data.js (loaded first).
+
+// ── Map setup ─────────────────────────────────────────────
+const map = L.map('map', {
+  crs: PaddedCRS,
+  zoomControl: false, center: [25, 10], zoom: 2,
+  maxBounds: MAP_MAX_BOUNDS, maxBoundsViscosity: 0.3,
+  zoomSnap: 0.25,          // allow quarter-level zoom instead of snapping to whole numbers
+  zoomDelta: 0.25,         // +/- buttons and keyboard zoom move by the same finer increment
+  wheelPxPerZoomLevel: 60  // back to Leaflet's default scroll-wheel sensitivity
+});
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+const TILE_URLS = {
+  dark:  { base: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',  labels: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png' },
+  light: { base: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', labels: 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png' }
+};
+
+const baseTileLayer = L.tileLayer(TILE_URLS.dark.base, {
+  attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 13, noWrap: true
+}).addTo(map);
+
+map.createPane('labelsPane');
+map.getPane('labelsPane').style.zIndex = '450';
+map.getPane('labelsPane').style.pointerEvents = 'none';
+const labelsTileLayer = L.tileLayer(TILE_URLS.dark.labels, {
+  subdomains: 'abcd', maxZoom: 13, pane: 'labelsPane', noWrap: true
+}).addTo(map);
+
+// Sit above labels so highlight/selection indicators stay visible even
+// when the base map + labels are showing (not just in heatmap-only mode).
+map.createPane('countryHighlightPane');
+map.getPane('countryHighlightPane').style.zIndex = '460';
+map.getPane('countryHighlightPane').style.pointerEvents = 'none';
+map.createPane('selectionPane');
+map.getPane('selectionPane').style.zIndex = '470';
+map.getPane('selectionPane').style.pointerEvents = 'none';
+
+// ── Gradient ──────────────────────────────────────────────
+const STOPS = [
+  [0.00, [26,  5, 64]],
+  [0.20, [91, 33,182]],
+  [0.45, [124,111,247]],
+  [0.65, [ 34,211,238]],
+  [0.85, [245,158, 11]],
+  [1.00, [255, 45,111]],
+];
+// The selection box reuses the gradient's own "high value" colour, kept as
+// a single derived constant so the two stay in sync if STOPS ever changes.
+const SELECTION_RGB = STOPS[STOPS.length - 1][1];
+const SELECTION_COLOR = `rgb(${SELECTION_RGB.join(',')})`;
+
+function gradRGB(t) {
+  for (let i = 1; i < STOPS.length; i++) {
+    const [t0,c0] = STOPS[i-1], [t1,c1] = STOPS[i];
+    if (t <= t1) {
+      const f = (t-t0)/(t1-t0);
+      return [c0[0]+f*(c1[0]-c0[0])|0, c0[1]+f*(c1[1]-c0[1])|0, c0[2]+f*(c1[2]-c0[2])|0];
+    }
+  }
+  return [255,45,111];
+}
+
+// ── Region coordinates — forward (id → lat/lng) and inverse ─
+function regionCoords(rid) {
+  const x = (rid-1) % 512, y = (rid-1)/512|0;
+  const lng = ((x+0.5)/512)*360 - 180;
+  const n   = Math.PI - 2*Math.PI*(y+0.5)/512;
+  const lat = (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
+  return [lat, lng];
+}
+
+// Inverse of regionCoords — turns a click's lat/lng straight into a region ID
+// in O(1), no scanning needed. The grid is a perfect Mercator projection so
+// this is an exact cell-membership test, not a nearest-neighbour approximation.
+function latlngToRegionId(lat, lng) {
+  lng = ((lng % 360) + 360) % 360;
+  if (lng >= 180) lng -= 360;
+  const x = Math.min(511, Math.max(0, Math.floor((lng + 180) / 360 * 512)));
+  const clampedLat = Math.min(WORLD_LAT, Math.max(WORLD_LAT2, lat));
+  const latRad = clampedLat * Math.PI / 180;
+  const n = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+  const y = Math.min(511, Math.max(0, Math.floor((Math.PI - n) / (2 * Math.PI) * 512)));
+  return y * 512 + x + 1;
+}
+
+// Same Mercator math as regionCoords, but for a cell edge (integer row)
+// rather than its center (row + 0.5) — used to build the cell's four corners.
+function mercLatFromRow(yFrac) {
+  const n = Math.PI - 2*Math.PI*yFrac/512;
+  return (180/Math.PI) * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
+}
+
+// Exact SW/NE bounds of a region's grid cell, for drawing a selection box
+// that lines up pixel-perfectly with the heatmap overlay.
+function regionCellBounds(rid) {
+  const x = (rid-1) % 512, y = (rid-1)/512|0;
+  const lngW = (x/512)*360 - 180;
+  const lngE = ((x+1)/512)*360 - 180;
+  const latN = mercLatFromRow(y);
+  const latS = mercLatFromRow(y+1);
+  return [[latS, lngW], [latN, lngE]];
+}
+
+// ── Format ────────────────────────────────────────────────
+const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));
+
+function animCount(el, to) {
+  const s = Date.now(), d = 800;
+  const tick = () => {
+    const p = Math.min((Date.now()-s)/d,1), e = 1-Math.pow(1-p,3);
+    el.textContent = fmt(Math.round(to*e));
+    if (p<1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── Row action icons (used by the virtual list below) ──────
+const ICON_LOCATE  = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>';
+const ICON_EXTLINK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICON_EYE     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICON_EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+const ICON_MOON    = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>';
+const ICON_SUN     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>';
+const ICON_TREND   = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/></svg>';
+
+// ── Image overlay ─────────────────────────────────────────
+const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
+let filledOverlays = [];
+let lastOverlayBlobUrl = null;
+let heatmapVisible = true; // toggled via toggleHeatmapVisibility(); persists across snapshot switches
+let heatmapRefreshToken = 0; // guards refreshHeatmapOverlay() against overlapping fetches (rapid mode/date changes)
+
+// Renders the 512×512 bitmap via toBlob()+ObjectURL instead of toDataURL() —
+// non-blocking, and skips the ~33% size overhead of base64 encoding.
+function setFilledOverlay(canvas) {
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    filledOverlays.forEach(o => map.removeLayer(o));
+    const overlay = L.imageOverlay(url, WORLD_BOUNDS_MAIN, OVERLAY_OPTS).addTo(map);
+    overlay.setOpacity(heatmapVisible ? 1 : 0);
+    filledOverlays = [overlay];
+    if (lastOverlayBlobUrl) URL.revokeObjectURL(lastOverlayBlobUrl);
+    lastOverlayBlobUrl = url;
+  }, 'image/png');
+}
+
+function buildOffscreen(rows, maxPx) {
+  const os  = document.createElement('canvas');
+  os.width = os.height = 512;
+  const ctx = os.getContext('2d');
+  const img = ctx.createImageData(512, 512);
+  const d   = img.data;
+  for (let i = 0; i < 512*512*4; i += 4) { d[i]=18; d[i+1]=23; d[i+2]=34; d[i+3]=255; }
+  const logMax = Math.log1p(maxPx) || 1;
+  for (const row of rows) {
+    const x = (row.regionId-1) % 512, y = (row.regionId-1)/512|0;
+    if (x<0||x>511||y<0||y>511) continue;
+    const t = Math.log1p(row.pixels)/logMax;
+    const [cr,cg,cb] = gradRGB(t);
+    const idx = (y*512+x)*4;
+    d[idx]=cr; d[idx+1]=cg; d[idx+2]=cb; d[idx+3]=255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return os;
+}

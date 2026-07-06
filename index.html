@@ -360,6 +360,19 @@
 </aside>
 
 </div>
-<script src="script.js"></script>
+<!-- Split from a single script.js into load-ordered files under js/ — see
+     each file's header comment for what it contains and why it sits where
+     it does in this order. All still classic (non-module) scripts sharing
+     one global scope, so no bundler/build step is needed. -->
+<script src="js/data.js"></script>
+<script src="js/map-core.js"></script>
+<script src="js/lists.js"></script>
+<script src="js/data-loading.js"></script>
+<script src="js/render-stats.js"></script>
+<script src="js/map-overlay.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/trend-panel.js"></script>
+<script src="js/map-selection.js"></script>
+<script src="js/ui-chrome.js"></script>
 </body>
 </html>
