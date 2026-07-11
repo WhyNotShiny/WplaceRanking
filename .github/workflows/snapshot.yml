@@ -3,7 +3,7 @@ name: Build leaderboard snapshot
 
 on:
   schedule:
-    - cron: '0 1 * * 6'   # Saturdays, 01:00 UTC
+    - cron: '0 3 * * 6'   # Saturdays, 03:00 UTC
   workflow_dispatch: {}
 
 permissions:
