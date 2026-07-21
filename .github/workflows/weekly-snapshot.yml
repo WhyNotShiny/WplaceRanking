@@ -1,13 +1,37 @@
-# .github/workflows/snapshot.yml
+# .github/workflows/weekly-snapshot.yml
+#
+# Replaces .github/workflows/snapshot.yml (same job, new filename) — the old
+# file's `schedule:` trigger never fired a single time in over a week despite
+# every documented cause being ruled out (valid YAML, correct cron, main
+# confirmed as the default branch, not a fork, not disabled, no 60-day
+# inactivity, no duplicate workflow file, and a real re-push that still
+# didn't register). That points to a stuck registration on GitHub's side
+# tied to this specific file path. A genuinely new path is the next thing
+# to try before escalating to GitHub Support.
+#
+# Delete the old snapshot.yml when adding this one.
+
 name: Build leaderboard snapshot
 
 on:
   schedule:
-    - cron: '0 3 * * 6'   # Saturdays, 03:00 UTC
+    # Shifted off the exact hour (was 03:00) — GitHub's own docs note that
+    # round-hour schedules are the most congested and most likely to be
+    # delayed, since that's when everyone else's cron jobs fire too.
+    - cron: '17 1 * * 6'   # Saturdays, 01:17 UTC
   workflow_dispatch: {}
 
 permissions:
   contents: write   # needed to commit the new CSV + manifest back to the repo
+
+# Prevents a manual run and the schedule from ever overlapping — without
+# this, two runs racing the same git history is exactly what caused the
+# "fetch first" push rejection seen earlier. cancel-in-progress: false
+# means an overlapping trigger queues behind the current run instead of
+# killing 2 hours of in-progress scraping.
+concurrency:
+  group: leaderboard-snapshot
+  cancel-in-progress: false
 
 jobs:
   build-snapshot:
