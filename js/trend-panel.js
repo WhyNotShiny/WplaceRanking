@@ -2,17 +2,27 @@
 // region or country.
 
 // ── Trend panel (region or country) ────────────────────────
-// Builds a pixel-count-over-time chart by pulling one value out of every
-// available snapshot CSV — a single region's row, or a country's regions
-// summed. There's no separate history file — each date's full CSV has to
-// be downloaded once (same fetchCSV/parseCSVData pipeline as the main
-// loader) and the result lands in the same snapshotCache the timeline
-// slider uses, so browsing dates and opening trends for different
-// regions/countries all get cheaper over a session as more dates end up
-// cached.
+// Builds a pixel-count-over-time chart by pulling one value out of each
+// of the most recent snapshot CSVs — a single region's row, or a
+// country's regions summed. There's no separate history file — each
+// date's full CSV has to be downloaded once (same fetchCSV/parseCSVData
+// pipeline as the main loader) and the result lands in the same
+// snapshotCache the timeline slider uses, so browsing dates and opening
+// trends for different regions/countries all get cheaper over a session
+// as more dates end up cached.
 let trendMode        = null; // 'region' | 'country' | null
 let trendEntityId    = null; // the regionId or countryId currently shown
 let trendFetchToken  = 0;    // guards against overlapping fetches from rapid switching
+
+// Capping the window keeps a trend panel's worst-case cost bounded
+// forever, instead of re-downloading every snapshot the project has ever
+// produced — at weekly snapshots, 26 is roughly six months, which is
+// plenty to see a real trend without the wait growing every single week.
+const TREND_MAX_SNAPSHOTS = 26;
+// Fetched with limited concurrency rather than one at a time, so opening
+// a trend panel takes roughly (window size ÷ concurrency) round-trips,
+// not (window size) of them.
+const TREND_FETCH_CONCURRENCY = 5;
 
 function isTrendPanelOpen() {
   return !document.getElementById('trend-panel').classList.contains('closed');
@@ -25,7 +35,7 @@ function openRegionTrend(regionId) {
   trendEntityId = regionId;
   document.getElementById('trend-panel').classList.remove('closed');
   document.getElementById('trend-title').textContent = row.name;
-  renderTrendLoading(0, SNAPSHOTS.length);
+  renderTrendLoading(0, Math.min(SNAPSHOTS.length, TREND_MAX_SNAPSHOTS));
   loadTrendSeries(
     rows => { const r = rows.find(rr => rr.regionId === regionId); return r ? r.pixels : null; },
     points => renderTrendChart(row.name, points)
@@ -40,7 +50,7 @@ function openCountryTrend(countryId) {
   trendEntityId = countryId;
   document.getElementById('trend-panel').classList.remove('closed');
   document.getElementById('trend-title').textContent = nm;
-  renderTrendLoading(0, SNAPSHOTS.length);
+  renderTrendLoading(0, Math.min(SNAPSHOTS.length, TREND_MAX_SNAPSHOTS));
   loadTrendSeries(
     rows => {
       let sum = 0, any = false;
@@ -68,16 +78,21 @@ function renderTrendLoading(done, total) {
     </div>`;
 }
 
-// Shared driver: walks every snapshot (downloading + caching any not
-// already in snapshotCache), pulls one value per date via `extract(rows)`,
-// and hands the finished {date, pixels}[] series to `onDone`. `extract`
-// returning null leaves a gap in that date's line instead of a hard stop.
+// Shared driver: walks the most recent TREND_MAX_SNAPSHOTS snapshots
+// (downloading + caching any not already in snapshotCache, up to
+// TREND_FETCH_CONCURRENCY at once), pulls one value per date via
+// `extract(rows)`, and hands the finished {date, pixels}[] series
+// (oldest→newest, order preserved despite out-of-order completion) to
+// `onDone`. `extract` returning null leaves a gap in that date's line
+// instead of a hard stop.
 async function loadTrendSeries(extract, onDone) {
   const token = ++trendFetchToken;
-  const points = [];
+  const snaps = SNAPSHOTS.slice(-TREND_MAX_SNAPSHOTS); // most recent N; harmless no-op if fewer exist
+  const points = new Array(snaps.length);
+  let completed = 0;
 
-  for (let i = 0; i < SNAPSHOTS.length; i++) {
-    const snap = SNAPSHOTS[i];
+  async function fetchOne(i) {
+    const snap = snaps[i];
     let rows = snapshotCache.get(snap.date);
 
     if (!rows) {
@@ -88,16 +103,35 @@ async function loadTrendSeries(extract, onDone) {
         rows = parseCSVData(data);
         snapshotCache.set(snap.date, rows);
       } catch (err) {
-        points.push({ date: snap.date, pixels: null }); // gap in the line, not a hard failure
-        if (token === trendFetchToken) renderTrendLoading(i + 1, SNAPSHOTS.length);
-        continue;
+        if (token !== trendFetchToken) return;
+        points[i] = { date: snap.date, pixels: null }; // gap in the line, not a hard failure
+        completed++;
+        renderTrendLoading(completed, snaps.length);
+        return;
       }
     }
 
     if (token !== trendFetchToken) return;
-    points.push({ date: snap.date, pixels: extract(rows) });
-    renderTrendLoading(i + 1, SNAPSHOTS.length);
+    points[i] = { date: snap.date, pixels: extract(rows) };
+    completed++;
+    renderTrendLoading(completed, snaps.length);
   }
+
+  // Each worker repeatedly claims the next unclaimed index, so at most
+  // TREND_FETCH_CONCURRENCY fetches are ever in flight at once; `points`
+  // is written by index, so final order stays oldest→newest regardless
+  // of which fetch happens to finish first.
+  let nextIdx = 0;
+  async function worker() {
+    while (nextIdx < snaps.length) {
+      const i = nextIdx++;
+      await fetchOne(i);
+      if (token !== trendFetchToken) return;
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(TREND_FETCH_CONCURRENCY, snaps.length) }, worker)
+  );
 
   if (token !== trendFetchToken) return;
   onDone(points);
@@ -148,7 +182,7 @@ function renderTrendChart(label, points) {
   document.getElementById('trend-body').innerHTML = `
     <div class="trend-summary">
       <div class="trend-summary-val">${fmt(latest)}</div>
-      <div class="trend-summary-sub ${deltaClass}">${deltaStr} since first snapshot · ${n} snapshot${n===1?'':'s'}</div>
+      <div class="trend-summary-sub ${deltaClass}">${deltaStr} over ${n} snapshot${n===1?'':'s'}</div>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="trend-svg">
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" class="trend-axis-line"/>
@@ -161,4 +195,3 @@ function renderTrendChart(label, points) {
       ${dots}
     </svg>`;
 }
-
