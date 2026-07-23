@@ -59,13 +59,24 @@ if (window.matchMedia('(max-width: 768px)').matches) {
 })();
 
 // ── Keyboard shortcuts ────────────────────────────────────
+function openShortcuts() { document.getElementById('shortcuts-backdrop').classList.add('show'); }
+function closeShortcuts() { document.getElementById('shortcuts-backdrop').classList.remove('show'); }
+function isShortcutsOpen() { return document.getElementById('shortcuts-backdrop').classList.contains('show'); }
+
 document.addEventListener('keydown', e => {
   const search = document.getElementById('searchinput');
-  if (e.key === '/' && document.activeElement !== search) {
+  if (e.key === '?' && document.activeElement !== search) {
+    e.preventDefault();
+    openShortcuts();
+  } else if (e.key === '/' && document.activeElement !== search) {
     e.preventDefault();
     switchTab('list');
     search.focus();
   } else if (e.key === 'Escape') {
+    // Takes priority over everything else Esc normally does — if the
+    // shortcuts modal is open, Esc should just close that, not also
+    // deselect whatever region/country was selected underneath it.
+    if (isShortcutsOpen()) { closeShortcuts(); return; }
     search.blur();
     map.closePopup();
     if (selectedRegionId != null) deselectRegion();

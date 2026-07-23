@@ -141,14 +141,14 @@
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-key="px" onclick="setSort('px')">Pixels <span class="arr">▼</span></button>
       <button class="sort-chip" data-key="id" onclick="setSort('id')">Region ID <span class="arr"></span></button>
-      <button class="sort-chip" data-key="delta" onclick="setSort('delta')">Change <span class="arr"></span></button>
+      <button class="sort-chip" data-key="delta" onclick="setSort('delta')" title="Rank by growth since the previous snapshot">Change <span class="arr"></span></button>
     </div>
 
     <div id="cty-sort-bar">
       <span class="sort-label">Sort</span>
       <button class="sort-chip active" data-cty="px" onclick="setCtySort('px')">Pixels <span class="arr">▼</span></button>
       <button class="sort-chip" data-cty="n" onclick="setCtySort('n')">Regions <span class="arr"></span></button>
-      <button class="sort-chip" data-cty="delta" onclick="setCtySort('delta')">Change <span class="arr"></span></button>
+      <button class="sort-chip" data-cty="delta" onclick="setCtySort('delta')" title="Rank by growth since the previous snapshot">Change <span class="arr"></span></button>
       <button class="sort-chip" data-cty="avg" onclick="setCtySort('avg')" title="Average pixels per region — how intensely a country's regions are painted on average, not a bounded occupation percentage">Avg/Region <span class="arr"></span></button>
     </div>
 
@@ -323,22 +323,11 @@
 
     <div class="sect"><div class="sect-title">How To Use</div></div>
     <ol class="info-steps">
-      <li><span class="istep-num">1</span><span>Click any cell on the map — the hit area scales with zoom, so corners still register when you're zoomed in close.</span></li>
-      <li><span class="istep-num">2</span><span>Search by name, Region ID, or country name, or sort by Pixels / Region ID / Change using the chips above the list.</span></li>
-      <li><span class="istep-num">3</span><span>Click a row (or its locate button) to fly there and highlight it in the list — clicking the map does the same in reverse. The second button opens that region directly on wplace.live.</span></li>
-      <li><span class="istep-num">4</span><span>Drag the sidebar's right edge to resize it, or hit the ◀ button in the header to collapse it entirely.</span></li>
-      <li><span class="istep-num">5</span><span>The sun/moon button in the sidebar header switches between light and dark mode. Your choice is remembered on this device.</span></li>
-      <li><span class="istep-num">6</span><span>The Stats tab breaks down the pixel distribution — trimmed mean, deviation, and percentile spread across all regions.</span></li>
-      <li><span class="istep-num">7</span><span>Map color follows a log scale — purple/blue is low pixel density, pink/red is high (see the legend, bottom-right).</span></li>
-      <li><span class="istep-num">8</span><span>Use the timeline slider at the bottom of the map to compare snapshots across different dates. Use <kbd>←</kbd> / <kbd>→</kbd> arrow keys to step between dates, or drag the slider. Each CSV is cached after the first load so switching is instant.</span></li>
-      <li><span class="istep-num">9</span><span>The grid button (top-left of the map) hides the base map and place labels, leaving just the coloured region squares.</span></li>
-      <li><span class="istep-num">10</span><span>The eye button below it hides just the colour heatmap, keeping the base map and any country highlight — handy for seeing exactly which regions a country spans without the pixel-count colouring in the way.</span></li>
-      <li><span class="istep-num">11</span><span>Selecting a region draws a red box around it on the map. Clicking a country in the Countries view washes all of that country's regions in white and fits the map to show them.</span></li>
-      <li><span class="istep-num">12</span><span>Click the trend icon on a region's row (or "Pixel history" in its map popup) to see how that region's pixel count has changed over its most recent 26 snapshots (about six months at the usual weekly cadence), in a panel on the right. It has to download any snapshot dates not already cached, so the first time you open it for a fresh session it may take a moment.</span></li>
-      <li><span class="istep-num">13</span><span>The Δ button switches the map's heatmap from total pixels (which barely changes once a region fills in) to change since the previous snapshot — useful for spotting where activity is happening right now rather than where it happened historically. It needs the prior snapshot downloaded to compare against, so switching modes may take a moment on a fresh session, and it shows nothing on the very first available snapshot (there's nothing earlier to compare it to).</span></li>
-      <li><span class="istep-num">14</span><span>Both lists have a "Change" sort option alongside Pixels, ranking regions or countries by growth since the previous snapshot instead of their all-time total — the same comparison data the Δ heatmap uses, so switching between the two doesn't re-download anything twice.</span></li>
-      <li><span class="istep-num">15</span><span>The Countries list also has an "Avg/Region" sort — total pixels divided by that country's own region count, ranking which countries paint their regions most intensely on average rather than which have the highest raw total (which a country can lead just by having more regions). It's an average pixel count, not a bounded occupation percentage, since the actual maximum pixel capacity per region isn't part of this data.</span></li>
-      <li><span class="istep-num">16</span><span>The address bar stays in sync with your current region, country, and snapshot date, so the URL can be copied and shared to point straight at what you're looking at — or use the "Copy link" button in a region's map popup. Your last-used view, sort, and sidebar width are also remembered for next time.</span></li>
+      <li><span class="istep-num">1</span><span>Click a region on the map or in the list to select it, or search/sort using the controls above the list — hover any icon for what it does.</span></li>
+      <li><span class="istep-num">2</span><span>Drag the sidebar's right edge to resize it, or the ◀ button in the header to collapse it entirely.</span></li>
+      <li><span class="istep-num">3</span><span>Hover the three buttons above the map (grid / eye / Δ) to see what each heatmap display toggle does.</span></li>
+      <li><span class="istep-num">4</span><span>A region's "Pixel history" (its row icon, or the map popup) covers its most recent 26 snapshots (~6 months at weekly cadence) — a fresh session may take a moment to load dates not already cached.</span></li>
+      <li><span class="istep-num">5</span><span>The address bar stays synced to your current region, country, and date for sharing — your last view, sort, and sidebar width are also remembered for next time.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates · <kbd>?</kbd> shows this list anytime</p>
@@ -356,7 +345,7 @@
     <div style="height:10px"></div>
 
   </div>
-  <div id="resize-handle"></div>
+  <div id="resize-handle" title="Drag to resize sidebar"></div>
 </aside>
 
 <div id="mwrap">
