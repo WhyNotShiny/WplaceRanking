@@ -8,6 +8,7 @@ function switchTab(tab) {
   document.getElementById('panel-list').classList.toggle('active', tab==='list');
   document.getElementById('panel-stats').classList.toggle('active', tab==='stats');
   document.getElementById('panel-info').classList.toggle('active', tab==='info');
+  if (tab === 'stats' && rowsData.length) renderTopGainer();
 }
 
 // ── Sort ──────────────────────────────────────────────────

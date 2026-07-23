@@ -34,6 +34,23 @@
     if (w >= 320 && w <= 620) document.documentElement.style.setProperty('--sw', w + 'px');
   } catch (e) {}
 })();
+
+// Global safety net — attached before any of the app's own script files
+// even start loading, so it catches a genuinely unexpected bug wherever
+// it happens (not the network/parse failures already handled with their
+// own specific UI elsewhere). Shows once per page load; a cascade of
+// follow-on errors from the same root cause won't spam multiple banners.
+(function () {
+  var shown = false;
+  function showGlobalError() {
+    if (shown) return;
+    shown = true;
+    var banner = document.getElementById('global-error-banner');
+    if (banner) banner.classList.add('show');
+  }
+  window.addEventListener('error', showGlobalError);
+  window.addEventListener('unhandledrejection', showGlobalError);
+})();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -43,6 +60,25 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div id="global-error-banner">
+  <span>Something unexpected happened. Try reloading the page.</span>
+  <button onclick="location.reload()">Reload</button>
+  <button onclick="document.getElementById('global-error-banner').classList.remove('show')" aria-label="Dismiss" title="Dismiss">✕</button>
+</div>
+<div id="shortcuts-backdrop" onclick="closeShortcuts()">
+  <div id="shortcuts-modal" onclick="event.stopPropagation()" role="dialog" aria-label="Keyboard shortcuts">
+    <div id="shortcuts-head">
+      <span>Keyboard shortcuts</span>
+      <button onclick="closeShortcuts()" aria-label="Close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="shortcuts-row"><kbd>/</kbd><span>Jump to search</span></div>
+    <div class="shortcuts-row"><kbd>Esc</kbd><span>Clear focus, close popups/panels, deselect region or country</span></div>
+    <div class="shortcuts-row"><kbd>←</kbd><kbd>→</kbd><span>Step through snapshot dates</span></div>
+    <div class="shortcuts-row"><kbd>?</kbd><span>Show this list</span></div>
+  </div>
+</div>
 <div id="app">
 
 <aside id="sidebar">
@@ -163,6 +199,11 @@
         <div class="sl">Top Region</div>
         <div class="sv accent" id="st-max">—</div>
         <div class="sd" id="st-max-name">—</div>
+      </div>
+      <div class="scard wide">
+        <div class="sl">Top Gainer · since previous snapshot</div>
+        <div class="sv green" id="st-gainer">—</div>
+        <div class="sd" id="st-gainer-name">—</div>
       </div>
       <div class="scard">
         <div class="sl">Average Pixels</div>
@@ -300,7 +341,7 @@
       <li><span class="istep-num">16</span><span>The address bar stays in sync with your current region, country, and snapshot date, so the URL can be copied and shared to point straight at what you're looking at — or use the "Copy link" button in a region's map popup. Your last-used view, sort, and sidebar width are also remembered for next time.</span></li>
     </ol>
     <div class="info-block">
-      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
+      <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates · <kbd>?</kbd> shows this list anytime</p>
     </div>
 
     <div class="sect"><div class="sect-title">Credits</div></div>

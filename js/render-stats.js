@@ -33,6 +33,7 @@ function render(rows, snap) {
   }
 
   renderStats(rows, totalPx, maxPx);
+  if (document.getElementById('panel-stats').classList.contains('active')) renderTopGainer();
   refreshHeatmapOverlay();
 
   document.getElementById('searchinput').value = '';
@@ -65,6 +66,63 @@ function renderStats(rows, totalPx, maxPx) {
   renderDistBar(pxArr, maxPx);
   renderDistInsights(pxArr, n);
   renderCountryStats(rows);
+}
+
+// Surfaces the single biggest single-snapshot mover, reusing whatever
+// getRegionDeltaMap() already has cached (from the Δ heatmap or a
+// "Change" sort, if either was used) rather than fetching anything new
+// on its own — deliberately lazy, only triggered by actually viewing the
+// Stats tab (see switchTab()/render() call sites), so opening the app
+// and never looking at Stats costs nothing extra.
+let topGainerToken = 0;
+
+async function renderTopGainer() {
+  const token = ++topGainerToken;
+  const elVal  = document.getElementById('st-gainer');
+  const elName = document.getElementById('st-gainer-name');
+  if (!elVal || !rowsData.length) return;
+
+  if (currentSnapshotIdx <= 0) {
+    elVal.textContent = '—';
+    elName.textContent = 'No earlier snapshot to compare';
+    return;
+  }
+
+  elVal.textContent = '…';
+  elName.textContent = 'Loading…';
+
+  let info;
+  try {
+    info = await getRegionDeltaMap();
+  } catch (err) {
+    if (token !== topGainerToken) return;
+    elVal.textContent = '—';
+    elName.textContent = "Couldn't load comparison snapshot";
+    return;
+  }
+  if (token !== topGainerToken) return;
+
+  if (!info) {
+    elVal.textContent = '—';
+    elName.textContent = 'No earlier snapshot to compare';
+    return;
+  }
+
+  let bestId = null, bestDelta = -1;
+  for (const r of rowsData) {
+    const d = info.map.get(r.regionId) || 0;
+    if (d > bestDelta) { bestDelta = d; bestId = r.regionId; }
+  }
+
+  if (bestId == null || bestDelta <= 0) {
+    elVal.textContent = '—';
+    elName.textContent = 'No growth since previous snapshot';
+    return;
+  }
+
+  const row = rowById.get(bestId);
+  elVal.textContent = '+' + fmt(bestDelta);
+  elName.textContent = row ? `${row.countryId ? cFlag(row.countryId) + ' ' : ''}${row.name}` : `Region #${bestId}`;
 }
 
 function renderDistBar(sortedPx, maxPx) {
