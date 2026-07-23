@@ -31,6 +31,7 @@ function setCtySort(key) {
   ctySortDir = (ctySortKey === key) ? (ctySortDir === 'asc' ? 'desc' : 'asc') : 'desc';
   ctySortKey = key;
   updateCtySortUI();
+  try { localStorage.setItem('wplace-sort-country', JSON.stringify({ key: ctySortKey, dir: ctySortDir })); } catch (e) {}
   applyCountrySort(true);
 }
 
@@ -46,6 +47,7 @@ function updateCtySortUI() {
 function setView(v) {
   currentView = v;
   const isC = v === 'countries';
+  try { localStorage.setItem('wplace-view', v); } catch (e) {}
   document.getElementById('vtog-regions').classList.toggle('on', !isC);
   document.getElementById('vtog-countries').classList.toggle('on', isC);
   document.getElementById('sort-bar').style.display     = isC ? 'none' : '';
@@ -69,6 +71,7 @@ function setSort(key) {
   sortDir = (sortKey === key) ? (sortDir==='asc' ? 'desc' : 'asc') : SORT_DEFAULTS[key];
   sortKey = key;
   updateSortUI();
+  try { localStorage.setItem('wplace-sort-region', JSON.stringify({ key: sortKey, dir: sortDir })); } catch (e) {}
   if (rowsData.length) applyRegionSort(true);
 }
 
@@ -356,9 +359,9 @@ class VirtualList {
         `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${flagHtml}<span class="lname-txt">${r.name}</span></span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+
         `<span class="lval">${valText}</span>`+
-        `<button class="lgo" title="Fly to region">${ICON_LOCATE}</button>`+
-        `<button class="ltrend" title="View pixel history">${ICON_TREND}</button>`+
-        `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
+        `<button class="lgo" title="Fly to region" aria-label="Fly to region">${ICON_LOCATE}</button>`+
+        `<button class="ltrend" title="View pixel history" aria-label="View pixel history">${ICON_TREND}</button>`+
+        `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}" aria-label="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
       const cap=r;
       const activate = () => selectOrToggleRegion(cap);
       div.addEventListener('click', activate);

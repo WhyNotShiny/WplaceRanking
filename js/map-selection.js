@@ -50,6 +50,7 @@ function flyTo(r) {
       ${r.countryId?`<div class="pu-row"><b>Country</b> ${cFlag(r.countryId)} ${cName(r.countryId)}</div>`:""}
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
       <button class="pu-trend-btn" onclick="openRegionTrend(${r.regionId})">Pixel history</button>
+      <button class="pu-trend-btn" onclick="copyShareLink(this)">Copy link</button>
     </div>`).openOn(map);
   // The close-then-open swap above (if a popup was already showing) happens
   // fully synchronously, so it's safe to drop the guard immediately after.
@@ -70,6 +71,7 @@ function selectRegion(r, scroll) {
   clearCountryHighlight();
   selectedCountryId = null;
   selectedRegionId = r.regionId;
+  updateUrlParams({ region: r.regionId, country: null });
   updateSelectionMarker(null); // hide immediately — flyTo() redraws it once the flight settles
   flyTo(r);
   if (vlist) {
@@ -139,4 +141,3 @@ map.on('click', e => {
 map.on('moveend zoomend', () => {
   if (selectionRect) selectionRect.redraw();
 });
-

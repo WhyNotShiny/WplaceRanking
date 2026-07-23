@@ -50,11 +50,13 @@ function setCountryHighlight(countryId) {
 function deselectCountry() {
   clearCountryHighlight();
   selectedCountryId = null;
+  updateUrlParams({ country: null });
   if (currentView === 'countries') filterCountriesView(document.getElementById('searchinput').value);
 }
 
 function deselectRegion() {
   selectedRegionId = null;
+  updateUrlParams({ region: null });
   updateSelectionMarker(null);
   if (vlist) { vlist._key = null; vlist._paint(); }
 }
@@ -77,7 +79,11 @@ function closeMobileSidebarIfNeeded() {
 function toggleHeatmapOnly() {
   heatmapOnly = !heatmapOnly;
   document.getElementById('map').classList.toggle('heatmap-only', heatmapOnly);
-  document.getElementById('heatmap-toggle').classList.toggle('on', heatmapOnly);
+  const btn = document.getElementById('heatmap-toggle');
+  btn.classList.toggle('on', heatmapOnly);
+  const label = heatmapOnly ? 'Show the base map and labels again' : 'Show only the coloured region squares';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
 }
 
 // Hides just the coloured pixel-count overlay (opacity only, no rebuild
@@ -89,7 +95,9 @@ function toggleHeatmapVisibility() {
   filledOverlays.forEach(o => o.setOpacity(heatmapVisible ? 1 : 0));
   const btn = document.getElementById('heatmap-vis-toggle');
   btn.classList.toggle('off', !heatmapVisible);
-  btn.title = heatmapVisible ? 'Hide the pixel-count heatmap (keep the base map)' : 'Show the pixel-count heatmap';
+  const label = heatmapVisible ? 'Hide the pixel-count heatmap (keep the base map)' : 'Show the pixel-count heatmap';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
   btn.innerHTML = heatmapVisible ? ICON_EYE : ICON_EYE_OFF;
 }
 
@@ -104,9 +112,11 @@ function toggleHeatmapMode() {
   heatmapMode = heatmapMode === 'cumulative' ? 'change' : 'cumulative';
   const btn = document.getElementById('heatmap-mode-toggle');
   btn.classList.toggle('on', heatmapMode === 'change');
-  btn.title = heatmapMode === 'change'
+  const label = heatmapMode === 'change'
     ? 'Showing change since previous snapshot — click for total pixels'
     : 'Showing total pixels — click for change since previous snapshot';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
   refreshHeatmapOverlay();
 }
 
@@ -149,4 +159,3 @@ async function refreshHeatmapOverlay() {
   document.getElementById('mlegend-mode').textContent = `Change since ${fmtDate(info.prevDate)}`;
   setFilledOverlay(buildOffscreen(deltaRows, maxDelta));
 }
-

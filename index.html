@@ -4,15 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wplace · Region Leaderboard</title>
+<meta name="description" content="Live map and leaderboard for wplace.live's 512×512 world grid — region and country rankings, growth trends, and historical snapshots.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307090f'/%3E%3Crect x='4' y='4' width='10' height='10' rx='2' fill='%235b21b6'/%3E%3Crect x='18' y='4' width='10' height='10' rx='2' fill='%237c6ff7'/%3E%3Crect x='4' y='18' width='10' height='10' rx='2' fill='%2322d3ee'/%3E%3Crect x='18' y='18' width='10' height='10' rx='2' fill='%23f59e0b'/%3E%3C/svg%3E">
+<!-- Social preview cards (Discord/Slack/Twitter/etc). og-image.png ships alongside index.html. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Wplace · Region Leaderboard">
+<meta property="og:description" content="Live map and leaderboard for wplace.live's 512×512 world grid — region and country rankings, growth trends, and historical snapshots.">
+<meta property="og:image" content="https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/og-image.png">
+<meta property="og:url" content="https://whynotshiny.github.io/WplaceRanking/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Wplace · Region Leaderboard">
+<meta name="twitter:description" content="Live map and leaderboard for wplace.live's 512×512 world grid — region and country rankings, growth trends, and historical snapshots.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/WhyNotShiny/WplaceRanking/main/og-image.png">
 <script>
 // Runs synchronously before styles.css is applied, so a saved (or
 // system-preferred, on first visit) light preference takes effect
-// immediately instead of flashing dark-then-light.
+// immediately instead of flashing dark-then-light. Also restores a saved
+// sidebar width the same way — setting the --sw CSS var this early means
+// the sidebar renders at its remembered width from first paint, instead
+// of opening at the default width and visibly snapping to size later.
 (function () {
   try {
     var saved = localStorage.getItem('wplace-theme');
     var theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  } catch (e) {}
+  try {
+    var w = parseInt(localStorage.getItem('wplace-sidebar-width'), 10);
+    if (w >= 320 && w <= 620) document.documentElement.style.setProperty('--sw', w + 'px');
   } catch (e) {}
 })();
 </script>
@@ -32,10 +51,10 @@
     <div class="s-head-top">
       <h1><span class="dot"></span>Wplace Leaderboard</h1>
       <div class="s-head-btns">
-        <button id="theme-toggle" onclick="toggleTheme()" title="Switch to light mode">
+        <button id="theme-toggle" onclick="toggleTheme()" title="Switch to light mode" aria-label="Switch to light mode">
           <svg id="theme-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
         </button>
-        <button id="fold-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+        <button id="fold-btn" onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Collapse sidebar">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       </div>
@@ -278,6 +297,7 @@
       <li><span class="istep-num">13</span><span>The Δ button switches the map's heatmap from total pixels (which barely changes once a region fills in) to change since the previous snapshot — useful for spotting where activity is happening right now rather than where it happened historically. It needs the prior snapshot downloaded to compare against, so switching modes may take a moment on a fresh session, and it shows nothing on the very first available snapshot (there's nothing earlier to compare it to).</span></li>
       <li><span class="istep-num">14</span><span>Both lists have a "Change" sort option alongside Pixels, ranking regions or countries by growth since the previous snapshot instead of their all-time total — the same comparison data the Δ heatmap uses, so switching between the two doesn't re-download anything twice.</span></li>
       <li><span class="istep-num">15</span><span>The Countries list also has an "Avg/Region" sort — total pixels divided by that country's own region count, ranking which countries paint their regions most intensely on average rather than which have the highest raw total (which a country can lead just by having more regions). It's an average pixel count, not a bounded occupation percentage, since the actual maximum pixel capacity per region isn't part of this data.</span></li>
+      <li><span class="istep-num">16</span><span>The address bar stays in sync with your current region, country, and snapshot date, so the URL can be copied and shared to point straight at what you're looking at — or use the "Copy link" button in a region's map popup. Your last-used view, sort, and sidebar width are also remembered for next time.</span></li>
     </ol>
     <div class="info-block">
       <p><kbd>/</kbd> jumps to search · <kbd>Esc</kbd> clears focus, closes popups, and deselects the current region/country · <kbd>←</kbd> <kbd>→</kbd> steps through snapshot dates</p>
@@ -299,24 +319,24 @@
 </aside>
 
 <div id="mwrap">
-  <button id="sidebar-reopen" onclick="toggleSidebar()" title="Open sidebar">
+  <button id="sidebar-reopen" onclick="toggleSidebar()" title="Open sidebar" aria-label="Open sidebar">
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     <span id="sidebar-reopen-label">Leaderboard</span>
   </button>
   <div id="map"></div>
-  <button id="heatmap-toggle" onclick="toggleHeatmapOnly()" title="Show only the coloured region squares">
+  <button id="heatmap-toggle" onclick="toggleHeatmapOnly()" title="Show only the coloured region squares" aria-label="Show only the coloured region squares">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
     </svg>
   </button>
-  <button id="heatmap-vis-toggle" onclick="toggleHeatmapVisibility()" title="Hide the pixel-count heatmap (keep the base map)">
+  <button id="heatmap-vis-toggle" onclick="toggleHeatmapVisibility()" title="Hide the pixel-count heatmap (keep the base map)" aria-label="Hide the pixel-count heatmap">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   </button>
-  <button id="heatmap-mode-toggle" onclick="toggleHeatmapMode()" title="Show change since the previous snapshot instead of total pixels">Δ</button>
-  <div id="minfo-pill" title="Click for data source & info">
+  <button id="heatmap-mode-toggle" onclick="toggleHeatmapMode()" title="Show change since the previous snapshot instead of total pixels" aria-label="Toggle heatmap between total pixels and change since previous snapshot">Δ</button>
+  <div id="minfo-pill" title="Click for data source & info" aria-label="View data source and info">
     <div id="minfo-count">— regions</div>
     <div id="minfo-date">—</div>
   </div>
@@ -339,12 +359,12 @@
       <span id="ds-pos"></span>
     </div>
     <div class="ds-row">
-      <button class="ds-nav" id="ds-prev" onclick="stepSnapshot(-1)" title="Previous date (←)">‹</button>
+      <button class="ds-nav" id="ds-prev" onclick="stepSnapshot(-1)" title="Previous date (←)" aria-label="Previous snapshot date">‹</button>
       <div class="ds-track-wrap">
         <input type="range" id="date-range" min="0" max="0" value="0" step="1" oninput="onSliderInput(this.value)">
         <div id="ds-ticks"></div>
       </div>
-      <button class="ds-nav" id="ds-next" onclick="stepSnapshot(1)" title="Next date (→)">›</button>
+      <button class="ds-nav" id="ds-next" onclick="stepSnapshot(1)" title="Next date (→)" aria-label="Next snapshot date">›</button>
     </div>
   </div>
 </div>
@@ -352,7 +372,7 @@
 <aside id="trend-panel" class="closed">
   <div id="trend-head">
     <div id="trend-title">—</div>
-    <button id="trend-close" onclick="closeTrendPanel()" title="Close">
+    <button id="trend-close" onclick="closeTrendPanel()" title="Close" aria-label="Close trend panel">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>

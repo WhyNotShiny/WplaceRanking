@@ -54,6 +54,7 @@ if (window.matchMedia('(max-width: 768px)').matches) {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     map.invalidateSize();
+    try { localStorage.setItem('wplace-sidebar-width', asideEl.offsetWidth); } catch (e) {}
   });
 })();
 
@@ -80,8 +81,35 @@ document.addEventListener('keydown', e => {
 // Consolidated here (rather than left near discoverAndLoad's definition
 // in data-loading.js) so there's one obvious place that shows everything
 // that kicks off once the DOM is ready.
+
+// Restores last-used view/sort choices (theme and sidebar width are
+// restored even earlier, via the inline <head> script, since those affect
+// layout/paint — these three only affect state read once render() first
+// runs, so restoring them here, just before discoverAndLoad(), is early
+// enough). Values are validated against the actual known keys before use,
+// since localStorage can be edited or stale.
+function restoreListPreferences() {
+  try {
+    const savedView = localStorage.getItem('wplace-view');
+    if (savedView === 'regions' || savedView === 'countries') setView(savedView);
+  } catch (e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem('wplace-sort-region') || 'null');
+    if (s && SORT_DEFAULTS.hasOwnProperty(s.key) && (s.dir === 'asc' || s.dir === 'desc')) {
+      sortKey = s.key; sortDir = s.dir; updateSortUI();
+    }
+  } catch (e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem('wplace-sort-country') || 'null');
+    if (s && ['px','n','delta','avg'].includes(s.key) && (s.dir === 'asc' || s.dir === 'desc')) {
+      ctySortKey = s.key; ctySortDir = s.dir; updateCtySortUI();
+    }
+  } catch (e) {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('minfo-pill').addEventListener('click', () => switchTab('info'));
+  makeActivatable(document.getElementById('minfo-pill'), () => switchTab('info'));
   initTheme();
+  restoreListPreferences();
   discoverAndLoad();
 });

@@ -8,6 +8,75 @@ let selectedCountryId=null, selectionRect=null;
 let countryHighlightOverlay=null, countryHighlightBlobUrl=null;
 let heatmapOnly=false;
 
+// ── Shareable deep links ────────────────────────────────────
+// Keeps ?region=/?country=/?date= in the URL in sync with the current
+// selection, so a link can be copied and shared to point straight at a
+// specific region, country, or snapshot date. Uses replaceState (not
+// pushState) — the URL always reflects "what you're looking at right
+// now", not a navigation history, so clicking around never fights with
+// the browser's own back button.
+function updateUrlParams(updates) {
+  try {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value == null) url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+    }
+    history.replaceState(null, '', url);
+  } catch (e) {}
+}
+
+// Parsed once at load — whatever ?region=/?country=/?date= the page was
+// opened with, if any.
+const deepLinkParams = new URLSearchParams(window.location.search);
+let pendingDeepLinkApplied = false; // true once the initial region/country link (if any) has been tried, so it never re-fires on a later snapshot change
+
+// Called once, right after the first snapshot ever renders (rowById and
+// countryRegionsMap only become valid at that point). Selecting a region
+// takes precedence if a link somehow specifies both.
+function applyPendingDeepLink() {
+  if (pendingDeepLinkApplied) return;
+  pendingDeepLinkApplied = true;
+  const wantedRegion = deepLinkParams.get('region');
+  if (wantedRegion) {
+    const row = rowById.get(parseInt(wantedRegion, 10));
+    if (row) { selectRegion(row, true); return; }
+  }
+  const wantedCountry = deepLinkParams.get('country');
+  if (wantedCountry) {
+    const cid = parseInt(wantedCountry, 10);
+    if (countryRegionsMap.has(cid)) goToCountry(cid);
+  }
+}
+
+// Called from the region popup's "Copy link" button — the URL is already
+// synced to the current region/date by the time that popup exists (see
+// selectRegion()/loadSnapshot() above), so this just needs to copy it.
+function copyShareLink(btn) {
+  const url = window.location.href;
+  const showCopied = () => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(showCopied).catch(() => {});
+  } else {
+    // Fallback for contexts without the async Clipboard API (e.g. non-HTTPS)
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied();
+    } catch (e) {}
+  }
+}
+
 // ── Date helpers ──────────────────────────────────────────
 function fmtDate(iso) {
   const [y,m,d] = iso.split('-').map(Number);
@@ -168,6 +237,41 @@ async function fetchCSV(url, onProgress) {
   return new TextDecoder().decode(merged);
 }
 
+// ── Background prefetch ───────────────────────────────────
+// After a snapshot successfully renders, quietly fetch the immediately
+// adjacent dates too (no loading UI, no error UI) so the most common
+// interaction — stepping the timeline slider through nearby dates — feels
+// instant instead of starting a fresh download each click. Purely an
+// optimization: if a prefetch fails, loadSnapshot() will just do a normal
+// (visible, error-handled) fetch when the user actually navigates there.
+const prefetchingDates = new Set(); // in-flight prefetch dates, de-dupes rapid slider stepping
+
+async function prefetchSnapshot(idx) {
+  if (idx < 0 || idx >= SNAPSHOTS.length) return;
+  const snap = SNAPSHOTS[idx];
+  if (snapshotCache.has(snap.date) || prefetchingDates.has(snap.date)) return;
+  prefetchingDates.add(snap.date);
+  try {
+    const csvText = await fetchCSV(snap.url);
+    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    const rows = parseCSVData(data);
+    if (rows.length) snapshotCache.set(snap.date, rows);
+  } catch (err) {
+    // Silent by design — see comment above.
+  } finally {
+    prefetchingDates.delete(snap.date);
+  }
+}
+
+function prefetchAdjacentSnapshots(idx) {
+  // Respect Data Saver mode where the browser exposes it (mainly Chromium) —
+  // a user who's opted into reduced data usage shouldn't get uninvited
+  // multi-megabyte downloads just for stepping near their current date.
+  if (navigator.connection && navigator.connection.saveData) return;
+  prefetchSnapshot(idx - 1);
+  prefetchSnapshot(idx + 1);
+}
+
 async function loadSnapshot(idx) {
   if (idx < 0 || idx >= SNAPSHOTS.length) return;
   currentSnapshotIdx = idx;
@@ -182,6 +286,9 @@ async function loadSnapshot(idx) {
   if (snapshotCache.has(snap.date)) {
     rowsData = snapshotCache.get(snap.date);
     render(rowsData, snap);
+    updateUrlParams({ date: snap.date });
+    applyPendingDeepLink();
+    prefetchAdjacentSnapshots(idx);
     return;
   }
 
@@ -212,6 +319,9 @@ async function loadSnapshot(idx) {
     render(rows, snap);
     document.getElementById('load-bar').classList.add('done');
     document.getElementById('mload').classList.add('done');
+    updateUrlParams({ date: snap.date });
+    applyPendingDeepLink();
+    prefetchAdjacentSnapshots(idx);
   } catch(err) {
     if (loadingSnapshotIdx !== reqIdx) return;
     lastFailedAction = { type: 'snapshot', idx: reqIdx };
@@ -303,7 +413,13 @@ async function discoverAndLoad() {
   }
   usingFallbackDates = usedFallback;
 
-  currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest
+  currentSnapshotIdx = SNAPSHOTS.length - 1; // start on the newest, unless a ?date= link says otherwise
+  const wantedDate = deepLinkParams.get('date');
+  if (wantedDate) {
+    const idx = SNAPSHOTS.findIndex(s => s.date === wantedDate);
+    if (idx >= 0) currentSnapshotIdx = idx;
+  }
+
   const n = SNAPSHOTS.length;
   document.getElementById('load-msg').textContent = usingFallbackDates
     ? `Using ${n} cached snapshot${n === 1 ? '' : 's'} (live list unavailable)…`
@@ -311,4 +427,3 @@ async function discoverAndLoad() {
   initSlider();
   await loadSnapshot(currentSnapshotIdx);
 }
-

@@ -125,6 +125,7 @@ function goToCountry(id) {
   if (!countryRows.length) return;
 
   selectedCountryId = id;
+  updateUrlParams({ country: id, region: null });
   setCountryHighlight(id);
 
   // A country highlight replaces any individual region selection
@@ -297,4 +298,3 @@ function renderCountryStats(rows) {
   set('st-cty-top-reg-name', `${cFlag(topRegId)} ${cName(topRegId)||'Country '+topRegId}`);
   set('st-cty-avg-px',       fmt(Math.round(totalPx/activeCount)));
 }
-
