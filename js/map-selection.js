@@ -43,14 +43,16 @@ function flyTo(r) {
     autoPan: false
   }).setLatLng(r._ll).setContent(`
     <div class="pu">
-      <div class="pu-name">${r.name}</div>
+      <div class="pu-name-row">
+        <div class="pu-name">${r.name}</div>
+        <button class="pu-copy-btn" onclick="copyShareLink(this)" title="Copy link to this region" aria-label="Copy link to this region">${ICON_LINK}</button>
+      </div>
       <div class="pu-row"><b>Region ID</b> ${r.regionId}</div>
       <div class="pu-row"><b>Rank</b> #${r.rank}</div>
       <div class="pu-row"><b>Pixels</b> ${r.pixels.toLocaleString()}</div>
       ${r.countryId?`<div class="pu-row"><b>Country</b> ${cFlag(r.countryId)} ${cName(r.countryId)}</div>`:""}
       ${r.url?`<a class="pu-link" href="${r.url}" target="_blank">Open in wplace ↗</a>`:''}
       <button class="pu-trend-btn" onclick="openRegionTrend(${r.regionId})">Pixel history</button>
-      <button class="pu-trend-btn" onclick="copyShareLink(this)">Copy link</button>
     </div>`).openOn(map);
   // The close-then-open swap above (if a popup was already showing) happens
   // fully synchronously, so it's safe to drop the guard immediately after.

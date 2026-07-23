@@ -126,6 +126,7 @@ aside.folded { width: 0 !important; min-width: 0 !important; }
 #s-head { padding: 12px 12px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .s-head-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
 #s-head h1 { font-size: var(--fs-2xs); font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); letter-spacing: .3px; min-width: 0; text-transform: uppercase; }
+.s-head-title-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #s-head h1 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
 .s-head-btns { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 #theme-toggle {
@@ -482,7 +483,15 @@ kbd {
 .leaflet-popup-tip-container { display: none; }
 .leaflet-popup-content { margin: 0 !important; }
 .pu { padding: 12px 14px; min-width: 160px; }
-.pu-name { font-size: var(--fs-md); font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.pu-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.pu-name { font-size: var(--fs-md); font-weight: 600; line-height: 1.3; }
+.pu-copy-btn {
+  flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px; border-radius: 4px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--dim); cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center; transition: all .1s;
+}
+.pu-copy-btn:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pu-row { font-size: var(--fs-sm); color: var(--muted); margin-bottom: 2px; }
 .pu-row b { color: var(--text-secondary); font-weight: 500; }
 .pu-link { display: inline-block; margin-top: 8px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: var(--fs-sm); font-weight: 500; text-decoration: none; }
@@ -612,6 +621,10 @@ kbd {
   #date-range::-webkit-slider-thumb { width: 20px; height: 20px; }
   #date-range::-moz-range-thumb { width: 20px; height: 20px; }
   #date-slider-bar { padding: 10px 14px max(10px, env(safe-area-inset-bottom)); }
+
+  /* Same idea for the sidebar/trend-panel header buttons — 26px is a fine
+     mouse target but tight for a fingertip. */
+  #fold-btn, #theme-toggle, #trend-close { width: 36px; height: 36px; }
 
   /* Free up bottom-right for the legend; zoom control moves to bottom-left */
   .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
