@@ -108,16 +108,30 @@ function toggleHeatmapVisibility() {
 // surfacing where activity is happening *now* rather than historically.
 let heatmapMode = 'cumulative'; // 'cumulative' | 'change'
 
-function toggleHeatmapMode() {
-  heatmapMode = heatmapMode === 'cumulative' ? 'change' : 'cumulative';
-  const btn = document.getElementById('heatmap-mode-toggle');
-  btn.classList.toggle('on', heatmapMode === 'change');
-  const label = heatmapMode === 'change'
-    ? 'Showing change since previous snapshot — click for total pixels'
-    : 'Showing total pixels — click for change since previous snapshot';
-  btn.title = label;
-  btn.setAttribute('aria-label', label);
-  refreshHeatmapOverlay();
+function setHeatmapMode(mode) {
+  if (mode !== 'cumulative' && mode !== 'change') return;
+  const changed = mode !== heatmapMode;
+  heatmapMode = mode;
+  document.querySelectorAll('.hms-opt').forEach(btn => btn.classList.toggle('on', btn.dataset.mode === mode));
+  if (changed) refreshHeatmapOverlay();
+
+  // Keep the sidebar in sync — switching the map to Change also ranks
+  // both leaderboards by Change, and switching back to Total restores
+  // ranking by Pixels, so the map and lists always tell the same story
+  // instead of two disconnected controls that just happen to share data.
+  const wantKey = mode === 'change' ? 'delta' : 'px';
+  if (sortKey !== wantKey) {
+    sortKey = wantKey;
+    sortDir = SORT_DEFAULTS[wantKey];
+    updateSortUI();
+    if (rowsData.length) applyRegionSort(true);
+  }
+  if (ctySortKey !== wantKey) {
+    ctySortKey = wantKey;
+    ctySortDir = 'desc';
+    updateCtySortUI();
+    if (rowsData.length) applyCountrySort(true);
+  }
 }
 
 // Rebuilds the map overlay for whichever mode is active. In 'change' mode
@@ -128,34 +142,35 @@ function toggleHeatmapMode() {
 async function refreshHeatmapOverlay() {
   if (!rowsData.length) return;
   const token = ++heatmapRefreshToken;
+  const caption = document.getElementById('mlegend-caption');
 
   if (heatmapMode === 'cumulative') {
-    document.getElementById('mlegend-mode').textContent = 'Total pixels';
+    caption.textContent = '';
     setFilledOverlay(buildOffscreen(rowsData, maxPxGlobal));
     return;
   }
 
-  document.getElementById('mlegend-mode').textContent = 'Loading comparison…';
+  caption.textContent = 'Loading comparison…';
 
   let info;
   try {
     info = await getRegionDeltaMap();
   } catch (err) {
     if (token !== heatmapRefreshToken) return;
-    document.getElementById('mlegend-mode').textContent = 'Change (comparison failed to load)';
+    caption.textContent = 'Comparison failed to load';
     return;
   }
   if (token !== heatmapRefreshToken) return;
 
   if (!info) {
     // Earliest available snapshot — nothing earlier exists to diff against.
-    document.getElementById('mlegend-mode').textContent = 'Change (no earlier snapshot)';
+    caption.textContent = 'No earlier snapshot';
     setFilledOverlay(buildOffscreen([], 1));
     return;
   }
 
   const deltaRows = rowsData.map(r => ({ regionId: r.regionId, pixels: info.map.get(r.regionId) || 0 }));
   const maxDelta = deltaRows.reduce((m, r) => Math.max(m, r.pixels), 0) || 1;
-  document.getElementById('mlegend-mode').textContent = `Change since ${fmtDate(info.prevDate)}`;
+  caption.textContent = `since ${fmtDate(info.prevDate)}`;
   setFilledOverlay(buildOffscreen(deltaRows, maxDelta));
 }

@@ -23,7 +23,9 @@ let ctySortKey = 'px', ctySortDir = 'desc';
 // Populated (async) only once 'Change' sort is selected for either list —
 // see getRegionDeltaMap()/getCountryDeltaMap() further down.
 let regionDeltaById  = null; // Map<regionId, delta>
+let regionDeltaRankById = null; // Map<regionId, global rank by delta>
 let countryDeltaById = null; // Map<countryId, delta>
+let countryDeltaRankById = null; // Map<countryId, global rank by delta>
 let regionListToken  = 0;    // guards applyRegionSort() against overlapping fetches
 let countryListToken = 0;    // guards applyCountrySort() against overlapping fetches
 
@@ -100,7 +102,7 @@ function applySort(rows) {
 // per-region deltas, so this is fetched/cached once per snapshot pairing
 // rather than up to three times. Cached by snapshot index, so switching
 // between the three consumers (or revisiting a date) reuses the same data.
-let regionDeltaCache = null; // { forSnapshotIdx, prevDate, map, countryMap }
+let regionDeltaCache = null; // { forSnapshotIdx, prevDate, map, rankById, countryMap, countryRankById }
 let regionDeltaInFlight = null; // { forSnapshotIdx, promise } — de-dupes concurrent callers
 
 async function getRegionDeltaMap() {
@@ -131,7 +133,17 @@ async function getRegionDeltaMap() {
     // actual loss of painted pixels, so it's treated as "no visible growth".
     const map = new Map();
     for (const r of rowsData) map.set(r.regionId, Math.max(0, r.pixels - (prevById.get(r.regionId) || 0)));
-    const result = { forSnapshotIdx, prevDate: prevSnap.date, map, countryMap: null };
+
+    // Global rank by delta descending — lets the list show "you're the
+    // Nth biggest gainer" when sorted by Change, instead of the stale,
+    // unrelated all-time pixel rank that used to sit there regardless of
+    // what the list was actually sorted by.
+    const rankById = new Map();
+    [...rowsData]
+      .sort((a, b) => (map.get(b.regionId)||0) - (map.get(a.regionId)||0))
+      .forEach((r, i) => rankById.set(r.regionId, i + 1));
+
+    const result = { forSnapshotIdx, prevDate: prevSnap.date, map, rankById, countryMap: null, countryRankById: null };
     regionDeltaCache = result;
     return result;
   })();
@@ -154,8 +166,11 @@ async function getCountryDeltaMap() {
       cmap.set(r.countryId, (cmap.get(r.countryId) || 0) + (info.map.get(r.regionId) || 0));
     }
     info.countryMap = cmap;
+    const rankMap = new Map();
+    [...cmap.entries()].sort((a, b) => b[1] - a[1]).forEach(([id], i) => rankMap.set(id, i + 1));
+    info.countryRankById = rankMap;
   }
-  return { prevDate: info.prevDate, map: info.countryMap };
+  return { prevDate: info.prevDate, map: info.countryMap, rankById: info.countryRankById };
 }
 
 // Ensures the regions list reflects the current sortKey, fetching a
@@ -184,8 +199,10 @@ async function applyRegionSort(showLoadingUI) {
     }
     if (token !== regionListToken || sortKey !== 'delta') return;
     regionDeltaById = info ? info.map : null;
+    regionDeltaRankById = info ? info.rankById : null;
   } else {
     regionDeltaById = null;
+    regionDeltaRankById = null;
   }
   if (token !== regionListToken) return;
 
@@ -233,8 +250,10 @@ async function applyCountrySort(showLoadingUI) {
     }
     if (token !== countryListToken || ctySortKey !== 'delta') return;
     countryDeltaById = info ? info.map : null;
+    countryDeltaRankById = info ? info.rankById : null;
   } else {
     countryDeltaById = null;
+    countryDeltaRankById = null;
   }
   if (token !== countryListToken) return;
 
@@ -337,15 +356,21 @@ class VirtualList {
       const r=rows[i];
       const div=document.createElement('div');
       const isDelta = sortKey === 'delta' && regionDeltaById;
+      const deltaRank = isDelta ? (regionDeltaRankById ? regionDeltaRankById.get(r.regionId) : null) : null;
+      // The "Rk" column always reflects whatever the list is actually
+      // sorted by, instead of always showing the fixed all-time pixel
+      // rank regardless of view — that field made no sense next to a
+      // list sorted by Region ID or Change, since it didn't correspond
+      // to the order the rows were actually in.
+      const rkDisplay = sortKey === 'id' ? r.regionId : isDelta ? (deltaRank || '—') : r.rank;
       let cls='li';
-      // Medal colours reflect cumulative rank — suppress them in delta
-      // mode so a region isn't misleadingly highlighted gold for a metric
-      // it's not actually top-3 in.
-      if (!isDelta) {
-        if (r.rank===1) cls+=' rank-gold';
-        else if (r.rank===2) cls+=' rank-silver';
-        else if (r.rank===3) cls+=' rank-bronze';
-      }
+      // Medal colours reflect whichever rank is actually showing — real
+      // top-3-by-change in delta mode, not the unrelated cumulative rank.
+      // Region ID has no meaningful "top 3" concept, so no medals there.
+      const medalRank = sortKey === 'id' ? null : isDelta ? deltaRank : r.rank;
+      if (medalRank===1) cls+=' rank-gold';
+      else if (medalRank===2) cls+=' rank-silver';
+      else if (medalRank===3) cls+=' rank-bronze';
       if (r.regionId===selectedRegionId) cls+=' selected';
       div.className=cls;
       const deltaVal = isDelta ? (regionDeltaById.get(r.regionId) || 0) : null;
@@ -355,7 +380,7 @@ class VirtualList {
       const hasUrl = !!r.url;
       const flagHtml = r.countryId ? `<span class="flag-ic">${cFlag(r.countryId)}</span>` : '';
       div.innerHTML=
-        `<span class="lrank">${r.rank}</span>`+
+        `<span class="lrank">${rkDisplay}</span>`+
         `<span class="lid">#${r.regionId}</span>`+
         `<span class="lname" title="${cName(r.countryId)?cName(r.countryId)+": ":""}${r.name}">${flagHtml}<span class="lname-txt">${r.name}</span></span>`+
         `<div class="lbar-w"><div class="lbar" style="width:${pct}%"></div></div>`+

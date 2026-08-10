@@ -289,27 +289,41 @@ function renderCountriesLeaderboard(list, query) {
   } else {
     mx = countryData.reduce((m,c)=>Math.max(m,c.px),0) || 1;
   }
+
+  // The "Rk" column always reflects whichever metric the list is actually
+  // sorted by, not always the fixed cumulative-pixel rank. Countries list
+  // is small (a couple hundred entries at most), so computing a fresh
+  // rank-by-metric map on the fly for Regions/Avg is cheap — Change reuses
+  // the rank already computed once in getCountryDeltaMap().
+  let rankMap = null;
+  if (ctySortKey === 'n') {
+    rankMap = new Map();
+    [...countryData].sort((a,b) => b.n - a.n).forEach((c,i) => rankMap.set(c.id, i+1));
+  } else if (isAvg) {
+    rankMap = new Map();
+    [...countryData].sort((a,b) => (b.n?b.px/b.n:0) - (a.n?a.px/a.n:0)).forEach((c,i) => rankMap.set(c.id, i+1));
+  }
+
   const frag = document.createDocumentFragment();
   list.forEach(({id, px, n, rank}) => {
     const deltaVal = isDelta ? (countryDeltaById.get(id) || 0) : null;
     const avgVal   = isAvg ? (n ? px / n : 0) : null;
     const barVal = isDelta ? deltaVal : isAvg ? avgVal : px;
+    const rkDisplay = isDelta ? (countryDeltaRankById && countryDeltaRankById.get(id)) || '—'
+                     : rankMap ? (rankMap.get(id) || '—')
+                     : rank;
     const d = document.createElement('div');
     let cls = 'cty-lb-row';
-    // Medal colours reflect cumulative pixel rank — suppress them for
-    // delta/avg modes so a country isn't misleadingly highlighted gold
-    // for a metric it's not actually top-3 in.
-    if (!isDelta && !isAvg) {
-      if (rank===1) cls+=' rank-gold';
-      else if (rank===2) cls+=' rank-silver';
-      else if (rank===3) cls+=' rank-bronze';
-    }
+    // Medal colours reflect whichever rank is actually showing.
+    if (rkDisplay===1) cls+=' rank-gold';
+    else if (rkDisplay===2) cls+=' rank-silver';
+    else if (rkDisplay===3) cls+=' rank-bronze';
     if (id === selectedCountryId) cls+=' selected';
     d.className = cls;
     const nm = cName(id) || 'Country ' + id;
     const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : isAvg ? fmt(avgVal) : fmt(px);
     d.innerHTML =
-      `<span class="lrank">${rank}</span>`+
+      `<span class="lrank">${rkDisplay}</span>`+
       `<span class="lid"></span>`+
       `<span class="lname" title="${nm}"><span class="flag-ic">${cFlag(id)}</span><span class="lname-txt">${nm}</span></span>`+
       `<div class="lbar-w"><div class="lbar" style="width:${(barVal/mx*100).toFixed(1)}%"></div></div>`+
