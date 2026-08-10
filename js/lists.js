@@ -303,6 +303,34 @@ class VirtualList {
     container.addEventListener('scroll', ()=>this._paint(), {passive:true});
     if (typeof ResizeObserver!=='undefined')
       new ResizeObserver(()=>{this._key=null;this._paint();}).observe(container);
+
+    // Delegated click/keydown — one listener for the entire list instead
+    // of 5 per row (row-click, 3 button-clicks, keydown), which otherwise
+    // get attached and torn down on every row every time the visible
+    // range shifts during scrolling. The actual row object is looked up
+    // from the global rowById map by the row's data-region-id, since
+    // delegation means there's no per-row closure to capture it in.
+    inn.addEventListener('click', e => {
+      const rowEl = e.target.closest('.li');
+      if (!rowEl) return;
+      const r = rowById.get(parseInt(rowEl.dataset.regionId, 10));
+      if (!r) return;
+      const trendBtn = e.target.closest('.ltrend');
+      const wpBtn = e.target.closest('.lwp');
+      if (trendBtn) { openRegionTrend(r.regionId); return; }
+      if (wpBtn) { if (wpBtn.classList.contains('lwp-off')) return; window.open(r.url, '_blank', 'noopener,noreferrer'); return; }
+      // Plain row click or the .lgo button — both just select/fly.
+      selectOrToggleRegion(r);
+    });
+    inn.addEventListener('keydown', e => {
+      const rowEl = e.target.closest('.li');
+      if (!rowEl || e.target !== rowEl) return; // let nested buttons/links handle their own Enter/Space
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      const r = rowById.get(parseInt(rowEl.dataset.regionId, 10));
+      if (!r) return;
+      selectOrToggleRegion(r);
+    });
   }
 
   load(rows, maxPx) {
@@ -388,13 +416,15 @@ class VirtualList {
         `<button class="lgo" title="Fly to region" aria-label="Fly to region">${ICON_LOCATE}</button>`+
         `<button class="ltrend" title="View pixel history" aria-label="View pixel history">${ICON_TREND}</button>`+
         `<button class="lwp${hasUrl?'':' lwp-off'}"${hasUrl?'':' disabled'} title="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}" aria-label="${hasUrl?'Open on wplace.live':'No wplace link in this snapshot'}">${ICON_EXTLINK}</button>`;
-      const cap=r;
-      const activate = () => selectOrToggleRegion(cap);
-      div.addEventListener('click', activate);
-      makeActivatable(div, activate);
-      div.querySelector('.lgo').addEventListener('click',e=>{e.stopPropagation();activate();});
-      div.querySelector('.ltrend').addEventListener('click',e=>{e.stopPropagation();openRegionTrend(cap.regionId);});
-      if (hasUrl) div.querySelector('.lwp').addEventListener('click',e=>{e.stopPropagation();window.open(cap.url,'_blank','noopener,noreferrer');});
+      // Click/keydown handling is delegated to the container (see the
+      // constructor) instead of attaching 5 listeners per row here — with
+      // rows constantly being torn down and rebuilt during scrolling,
+      // that meant hundreds of addEventListener/querySelector calls on
+      // every repaint. Rows just need to be findable (data-region-id) and
+      // keyboard-focusable (tabIndex/role) now.
+      div.dataset.regionId = r.regionId;
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
       frag.appendChild(div);
     }
     inn.replaceChildren(frag);

@@ -55,9 +55,10 @@ function applyPendingDeepLink() {
 function copyShareLink(btn) {
   const url = window.location.href;
   const showCopied = () => {
-    const original = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = original; }, 1500);
+    const original = btn.innerHTML;
+    btn.innerHTML = ICON_CHECK;
+    btn.title = 'Copied!';
+    setTimeout(() => { btn.innerHTML = original; btn.title = 'Copy link to this region'; }, 1500);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(showCopied).catch(() => {});
@@ -268,8 +269,18 @@ function prefetchAdjacentSnapshots(idx) {
   // a user who's opted into reduced data usage shouldn't get uninvited
   // multi-megabyte downloads just for stepping near their current date.
   if (navigator.connection && navigator.connection.saveData) return;
-  prefetchSnapshot(idx - 1);
-  prefetchSnapshot(idx + 1);
+  // Deferred to an idle moment rather than fired immediately: the actual
+  // CSV parse (Papa.parse + parseCSVData) that follows the download is
+  // synchronous and blocks the main thread for a real, measurable span —
+  // fine when it's a foreground load the user is already waiting on, but
+  // this is a background optimization, so it shouldn't get a chance to
+  // stall an active scroll or interaction right after a snapshot loads.
+  // requestIdleCallback isn't in Safari, hence the setTimeout fallback.
+  const schedule = window.requestIdleCallback || (fn => setTimeout(fn, 300));
+  schedule(() => {
+    prefetchSnapshot(idx - 1);
+    prefetchSnapshot(idx + 1);
+  });
 }
 
 async function loadSnapshot(idx) {

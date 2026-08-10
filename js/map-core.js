@@ -65,6 +65,21 @@ function gradRGB(t) {
   return [255,45,111];
 }
 
+// Precomputed lookup table for gradRGB(), used only by buildOffscreen()'s
+// hot loop below (up to 262,144 calls per heatmap build — once per
+// snapshot load, date change, or heatmap mode switch). gradRGB() itself
+// does a linear search over STOPS plus an array allocation on every call;
+// at that call volume those add up to real, measurable main-thread time.
+// Built once here (reusing gradRGB() itself, so it can't drift out of
+// sync with the real gradient), then buildOffscreen() just does an O(1)
+// typed-array read instead.
+const GRAD_LUT_SIZE = 2048;
+const GRAD_LUT = new Uint8Array(GRAD_LUT_SIZE * 3); // interleaved r,g,b
+for (let i = 0; i < GRAD_LUT_SIZE; i++) {
+  const [r,g,b] = gradRGB(i / (GRAD_LUT_SIZE - 1));
+  GRAD_LUT[i*3] = r; GRAD_LUT[i*3+1] = g; GRAD_LUT[i*3+2] = b;
+}
+
 // ── Region coordinates — forward (id → lat/lng) and inverse ─
 function regionCoords(rid) {
   const x = (rid-1) % 512, y = (rid-1)/512|0;
@@ -158,15 +173,19 @@ function buildOffscreen(rows, maxPx) {
   const ctx = os.getContext('2d');
   const img = ctx.createImageData(512, 512);
   const d   = img.data;
-  for (let i = 0; i < 512*512*4; i += 4) { d[i]=18; d[i+1]=23; d[i+2]=34; d[i+3]=255; }
+  // Uint32Array view over the same buffer lets one native .fill() set all
+  // 262,144 background pixels at once, instead of a 262,144-iteration JS
+  // loop writing 4 bytes each. Byte order is little-endian on all
+  // browsers that matter here, so 0xAABBGGRR encodes A=255,B=34,G=23,R=18.
+  new Uint32Array(d.buffer).fill(0xff221712);
   const logMax = Math.log1p(maxPx) || 1;
   for (const row of rows) {
     const x = (row.regionId-1) % 512, y = (row.regionId-1)/512|0;
     if (x<0||x>511||y<0||y>511) continue;
     const t = Math.log1p(row.pixels)/logMax;
-    const [cr,cg,cb] = gradRGB(t);
+    const lutIdx = ((t * (GRAD_LUT_SIZE - 1)) | 0) * 3;
     const idx = (y*512+x)*4;
-    d[idx]=cr; d[idx+1]=cg; d[idx+2]=cb; d[idx+3]=255;
+    d[idx]=GRAD_LUT[lutIdx]; d[idx+1]=GRAD_LUT[lutIdx+1]; d[idx+2]=GRAD_LUT[lutIdx+2]; d[idx+3]=255;
   }
   ctx.putImageData(img, 0, 0);
   return os;

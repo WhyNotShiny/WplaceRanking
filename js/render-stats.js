@@ -329,9 +329,13 @@ function renderCountriesLeaderboard(list, query) {
       `<div class="lbar-w"><div class="lbar" style="width:${(barVal/mx*100).toFixed(1)}%"></div></div>`+
       `<span class="lval">${valText}</span>`+
       `<span class="cty-reg-cnt">${n.toLocaleString()}</span>`;
-    const activate = () => goToCountry(id);
-    d.addEventListener('click', activate);
-    makeActivatable(d, activate);
+    // Delegated to #lc-panel once (see ui-chrome.js) instead of attaching
+    // click+keydown listeners to every row on every rebuild — this list
+    // fully rebuilds on every search keystroke/sort change, so that adds
+    // up over a couple hundred countries.
+    d.dataset.countryId = id;
+    d.tabIndex = 0;
+    d.setAttribute('role', 'button');
     frag.appendChild(d);
   });
   el.replaceChildren(frag);
