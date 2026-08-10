@@ -134,7 +134,6 @@ function updateSliderUI(idx) {
 
   document.getElementById('ds-date').textContent = fmtDate(snap.date);
   document.getElementById('ds-pos').textContent  = n > 1 ? `${idx + 1} / ${n}` : '';
-  document.getElementById('minfo-date').textContent = fmtDate(snap.date);
 
   if (n > 1) {
     const pct = n <= 1 ? 100 : (idx / (n - 1)) * 100;

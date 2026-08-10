@@ -117,7 +117,6 @@ button:focus-visible,
 input:focus-visible,
 .li:focus-visible,
 .cty-lb-row:focus-visible,
-#minfo-pill:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -434,17 +433,6 @@ kbd {
 #mwrap { flex: 1; position: relative; background: var(--bg); }
 #map { width: 100%; height: 100%; background: var(--bg); }
 
-#minfo-pill {
-  position: absolute; top: 14px; right: 14px; z-index: 400;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px); border: 1px solid var(--border);
-  border-radius: 7px; padding: 6px 12px; text-align: right;
-  cursor: pointer; transition: border-color .15s, background .15s;
-}
-#minfo-pill:hover { border-color: var(--muted); }
-#minfo-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--muted); }
-#minfo-date  { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--dim); margin-top: 2px; }
-
 /* Heatmap-only toggle */
 #heatmap-toggle {
   position: absolute; top: 14px; left: 14px; z-index: 400;
@@ -479,31 +467,35 @@ kbd {
   display: none;
 }
 
-/* Gradient legend */
-#mlegend {
-  position: absolute; bottom: 30px; right: 14px; z-index: 400;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px); border: 1px solid var(--border);
-  border-radius: 7px; padding: 8px 10px 7px; width: 130px;
-}
 /* Heatmap-mode switch — a real two-option segmented control (matching the
    Regions/Countries view toggle's spirit) rather than a single small
    square button, so switching between Total and Change reads as picking
-   a mode, not flipping a minor on/off setting. Lives right on the legend
-   it controls, and also drives the sidebar lists' sort — see
-   setHeatmapMode() — so the map and both leaderboards tell the same story
-   at once instead of two disconnected controls that happen to share data. */
+   a mode, not flipping a minor on/off setting. Lives top-right, on its
+   own — the map's least cluttered corner — and also drives the sidebar
+   lists' sort (see setHeatmapMode()), so the map and both leaderboards
+   tell the same story at once instead of two disconnected controls that
+   happen to share data. */
 #heatmap-mode-switch {
-  display: flex; background: var(--raised); border: 1px solid var(--border);
-  border-radius: 6px; padding: 2px; gap: 2px; margin-bottom: 6px;
+  position: absolute; top: 14px; right: 14px; z-index: 400;
+  display: flex; background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+  border-radius: 7px; padding: 2px; gap: 2px;
 }
 .hms-opt {
-  flex: 1; padding: 4px 0; border-radius: 4px; border: none; background: none;
+  padding: 5px 10px; border-radius: 5px; border: none; background: none;
   font-family: var(--font); font-size: var(--fs-xs); font-weight: 600; color: var(--muted);
   cursor: pointer; transition: background .15s, color .15s; white-space: nowrap;
 }
 .hms-opt:hover { color: var(--text); }
 .hms-opt.on { background: var(--accent); color: #fff; }
+
+/* Gradient legend */
+#mlegend {
+  position: absolute; bottom: 30px; right: 14px; z-index: 400;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+  border-radius: 7px; padding: 7px 10px 6px;
+}
 #mlegend-caption {
   font-size: var(--fs-2xs); color: var(--dim); margin-bottom: 5px;
   min-height: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -683,7 +675,7 @@ kbd {
 
   /* Free up bottom-right for the legend; zoom control moves to bottom-left */
   .leaflet-bottom.leaflet-right { right: auto !important; left: 10px !important; }
-  #minfo-pill { top: max(14px, env(safe-area-inset-top)); }
+  #heatmap-mode-switch { top: max(14px, env(safe-area-inset-top)); }
   #heatmap-toggle { top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
   #heatmap-vis-toggle { top: max(54px, calc(env(safe-area-inset-top) + 40px)); left: max(14px, env(safe-area-inset-left)); }
 }

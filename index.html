@@ -325,7 +325,7 @@
     <ol class="info-steps">
       <li><span class="istep-num">1</span><span>Click a region on the map or in the list to select it, or search/sort using the controls above the list — hover any icon for what it does.</span></li>
       <li><span class="istep-num">2</span><span>Drag the sidebar's right edge to resize it, or the ◀ button in the header to collapse it entirely.</span></li>
-      <li><span class="istep-num">3</span><span>Hover the two buttons above the map (grid / eye) for what each display toggle does. The Total/Change switch on the legend (bottom-right) picks what the heatmap colours represent — Change also switches both leaderboards to rank by Change, so the map and lists stay in sync.</span></li>
+      <li><span class="istep-num">3</span><span>Hover the two buttons above the map (grid / eye) for what each display toggle does. The Total/Change switch (top-right) picks what the heatmap colours represent — Change also switches both leaderboards to rank by Change, so the map and lists stay in sync.</span></li>
       <li><span class="istep-num">4</span><span>A region's "Pixel history" (its row icon, or the map popup) covers its most recent 26 snapshots (~6 months at weekly cadence) — a fresh session may take a moment to load dates not already cached.</span></li>
       <li><span class="istep-num">5</span><span>The address bar stays synced to your current region, country, and date for sharing — your last view, sort, and sidebar width are also remembered for next time.</span></li>
     </ol>
@@ -365,15 +365,11 @@
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   </button>
-  <div id="minfo-pill" title="Click for data source & info" aria-label="View data source and info">
-    <div id="minfo-count">— regions</div>
-    <div id="minfo-date">—</div>
+  <div id="heatmap-mode-switch" role="group" aria-label="Heatmap mode">
+    <button class="hms-opt on" data-mode="cumulative" onclick="setHeatmapMode('cumulative')" title="Colour the map by total pixels painted" aria-label="Show total pixels">Total</button>
+    <button class="hms-opt" data-mode="change" onclick="setHeatmapMode('change')" title="Colour the map by change since the previous snapshot — also switches the sidebar lists to rank by Change" aria-label="Show change since previous snapshot">Change</button>
   </div>
   <div id="mlegend">
-    <div id="heatmap-mode-switch" role="group" aria-label="Heatmap mode">
-      <button class="hms-opt on" data-mode="cumulative" onclick="setHeatmapMode('cumulative')" title="Colour the map by total pixels painted" aria-label="Show total pixels">Total</button>
-      <button class="hms-opt" data-mode="change" onclick="setHeatmapMode('change')" title="Colour the map by change since the previous snapshot — also switches the sidebar lists to rank by Change" aria-label="Show change since previous snapshot">Change</button>
-    </div>
     <div id="mlegend-caption"></div>
     <div id="mlegend-bar"></div>
     <div class="mleg-labels"><span>Low</span><span>High</span></div>

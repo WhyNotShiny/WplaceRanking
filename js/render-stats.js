@@ -16,7 +16,6 @@ function render(rows, snap) {
   const numEl = document.getElementById('big-num');
   numEl.classList.remove('idle');
   animCount(numEl, totalPx);
-  document.getElementById('minfo-count').textContent = `${rows.length.toLocaleString()} regions`;
 
   // ── Date & Info panel ──────────────────────────────────
   if (snap) {
@@ -24,7 +23,6 @@ function render(rows, snap) {
     const filename = snap.url.split('/').pop();
     const repoUrl  = extractRepoUrl(snap.url);
 
-    document.getElementById('minfo-date').textContent    = dateStr;
     document.getElementById('info-refdate').textContent  = dateStr;
     document.getElementById('info-reffile').textContent  = filename;
     document.getElementById('info-csvlink').href         = snap.url;

@@ -119,8 +119,6 @@ function restoreListPreferences() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  makeActivatable(document.getElementById('minfo-pill'), () => switchTab('info'));
-
   // Delegated country-row activation — one listener for the whole panel
   // instead of one per row, since renderCountriesLeaderboard() rebuilds
   // every row on every search keystroke or sort change.
