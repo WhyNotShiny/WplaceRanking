@@ -2,6 +2,22 @@
 // change-since-previous-snapshot (delta) computation shared with the
 // heatmap and trend panel, the virtual-scrolling region list, and search.
 
+// Shared by both the regions list (VirtualList._paint) and the countries
+// list (renderCountriesLeaderboard) — both build a row's class string
+// with an optional medal class based on whichever rank is currently
+// being displayed for that row.
+function medalClass(rank) {
+  return rank === 1 ? ' rank-gold' : rank === 2 ? ' rank-silver' : rank === 3 ? ' rank-bronze' : '';
+}
+
+// Also shared by both lists' Change-sort value column — a "+" prefix for
+// positive growth, nothing for zero (deltas are already clamped to 0, so
+// there's no negative case to handle here unlike the trend panel's
+// three-way +/−/± formatting).
+function fmtDelta(val) {
+  return (val > 0 ? '+' : '') + fmt(val);
+}
+
 // ── Tab switching ─────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
@@ -123,8 +139,7 @@ async function getRegionDeltaMap() {
     let prevRows = snapshotCache.get(prevSnap.date);
     if (!prevRows) {
       const csvText = await fetchCSV(prevSnap.url);
-      const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-      prevRows = parseCSVData(data);
+      prevRows = await parseCSVAsync(csvText);
       snapshotCache.set(prevSnap.date, prevRows);
     }
     const prevById = new Map(prevRows.map(r => [r.regionId, r.pixels]));
@@ -138,10 +153,31 @@ async function getRegionDeltaMap() {
     // Nth biggest gainer" when sorted by Change, instead of the stale,
     // unrelated all-time pixel rank that used to sit there regardless of
     // what the list was actually sorted by.
+    //
+    // Sorts a typed array with no comparator instead of Array.sort() with
+    // one — benchmarked at ~250ms vs 600-900ms for 262k rows, since a
+    // custom comparator function gets called on every one of the ~4.7M
+    // comparisons a sort this size makes, and V8's native numeric sort
+    // path avoids that entirely. Value and original index are packed into
+    // one number (value * MULT + index) so the sort can carry both at
+    // once; MULT only needs to exceed the row count to stay collision-free,
+    // leaving ~35 bits of headroom for value — far more than any
+    // realistic weekly pixel delta needs. Verified against the plain
+    // comparator-sort result on unique values (ties between equal deltas
+    // can land in either order — either is a fine, arbitrary tie-break,
+    // so that's not a correctness concern here).
     const rankById = new Map();
-    [...rowsData]
-      .sort((a, b) => (map.get(b.regionId)||0) - (map.get(a.regionId)||0))
-      .forEach((r, i) => rankById.set(r.regionId, i + 1));
+    {
+      const n = rowsData.length;
+      const MULT = n + 1;
+      const combined = new Float64Array(n);
+      for (let i = 0; i < n; i++) combined[i] = (map.get(rowsData[i].regionId) || 0) * MULT + i;
+      combined.sort();
+      for (let rank = 1; rank <= n; rank++) {
+        const idx = combined[n - rank] % MULT;
+        rankById.set(rowsData[idx].regionId, rank);
+      }
+    }
 
     const result = { forSnapshotIdx, prevDate: prevSnap.date, map, rankById, countryMap: null, countryRankById: null };
     regionDeltaCache = result;
@@ -271,24 +307,6 @@ async function applyCountrySort(showLoadingUI) {
   filterCountriesView(document.getElementById('searchinput').value);
 }
 
-// ── Accessibility helper ────────────────────────────────────────────────
-// Both list types render plain <div> rows for performance (real <button>/<li>
-// elements would be heavier at these counts). That means the :focus-visible
-// CSS already defined for `.li` / `.cty-lb-row` has nothing to focus unless
-// we opt them into the tab order and wire up Enter/Space ourselves — this
-// does exactly that for any row, for either list.
-function makeActivatable(el, handler) {
-  el.tabIndex = 0;
-  el.setAttribute('role', 'button');
-  el.addEventListener('keydown', e => {
-    if (e.target !== el) return; // let nested buttons/links handle their own Enter/Space
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handler();
-    }
-  });
-}
-
 // ── Virtual list ──────────────────────────────────────────
 class VirtualList {
   constructor(container, itemH=36) {
@@ -396,15 +414,13 @@ class VirtualList {
       // top-3-by-change in delta mode, not the unrelated cumulative rank.
       // Region ID has no meaningful "top 3" concept, so no medals there.
       const medalRank = sortKey === 'id' ? null : isDelta ? deltaRank : r.rank;
-      if (medalRank===1) cls+=' rank-gold';
-      else if (medalRank===2) cls+=' rank-silver';
-      else if (medalRank===3) cls+=' rank-bronze';
+      cls += medalClass(medalRank);
       if (r.regionId===selectedRegionId) cls+=' selected';
       div.className=cls;
       const deltaVal = isDelta ? (regionDeltaById.get(r.regionId) || 0) : null;
       const barVal = isDelta ? deltaVal : r.pixels;
       const pct=mx>0?(barVal/mx*100).toFixed(1):0;
-      const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : fmt(r.pixels);
+      const valText = isDelta ? fmtDelta(deltaVal) : fmt(r.pixels);
       const hasUrl = !!r.url;
       const flagHtml = r.countryId ? `<span class="flag-ic">${cFlag(r.countryId)}</span>` : '';
       div.innerHTML=

@@ -136,7 +136,7 @@ function setHeatmapMode(mode) {
 
 // Rebuilds the map overlay for whichever mode is active. In 'change' mode
 // this needs the immediately preceding snapshot's rows, downloading and
-// caching them (same fetchCSV/parseCSVData/snapshotCache pipeline as
+// caching them (same fetchCSV/parseCSVAsync/snapshotCache pipeline as
 // everywhere else) if they aren't already cached from browsing dates or
 // viewing a trend panel.
 async function refreshHeatmapOverlay() {

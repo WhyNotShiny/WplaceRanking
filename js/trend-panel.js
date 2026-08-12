@@ -5,7 +5,7 @@
 // Builds a pixel-count-over-time chart by pulling one value out of each
 // of the most recent snapshot CSVs — a single region's row, or a
 // country's regions summed. There's no separate history file — each
-// date's full CSV has to be downloaded once (same fetchCSV/parseCSVData
+// date's full CSV has to be downloaded once (same fetchCSV/parseCSVAsync
 // pipeline as the main loader) and the result lands in the same
 // snapshotCache the timeline slider uses, so browsing dates and opening
 // trends for different regions/countries all get cheaper over a session
@@ -99,8 +99,7 @@ async function loadTrendSeries(extract, onDone) {
       try {
         const csvText = await fetchCSV(snap.url);
         if (token !== trendFetchToken) return; // superseded mid-download
-        const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        rows = parseCSVData(data);
+        rows = await parseCSVAsync(csvText, null, () => token !== trendFetchToken);
         snapshotCache.set(snap.date, rows);
       } catch (err) {
         if (token !== trendFetchToken) return;

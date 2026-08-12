@@ -313,13 +313,11 @@ function renderCountriesLeaderboard(list, query) {
     const d = document.createElement('div');
     let cls = 'cty-lb-row';
     // Medal colours reflect whichever rank is actually showing.
-    if (rkDisplay===1) cls+=' rank-gold';
-    else if (rkDisplay===2) cls+=' rank-silver';
-    else if (rkDisplay===3) cls+=' rank-bronze';
+    cls += medalClass(rkDisplay);
     if (id === selectedCountryId) cls+=' selected';
     d.className = cls;
     const nm = cName(id) || 'Country ' + id;
-    const valText = isDelta ? (deltaVal>0?'+':'') + fmt(deltaVal) : isAvg ? fmt(avgVal) : fmt(px);
+    const valText = isDelta ? fmtDelta(deltaVal) : isAvg ? fmt(avgVal) : fmt(px);
     d.innerHTML =
       `<span class="lrank">${rkDisplay}</span>`+
       `<span class="lid"></span>`+

@@ -189,29 +189,91 @@ function buildWplaceUrl(lat, lng) {
   return `https://wplace.live/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&zoom=12`;
 }
 
-function parseCSVData(data) {
-  const rows = data
-    .filter(r => r.regionId)
-    .map(r => ({
-      rank:     +r.rank     || 0,
-      regionId: +r.regionId,
-      name:     r.name      || `Region #${r.regionId}`,
-      pixels:   +r.pixels   || 0,
-      countryId:+r.countryId || 0,
-      url:      r.url       || '' // filled in below from regionCoords() if the CSV omits it
-    }));
-  for (const r of rows) {
-    r._ll = regionCoords(r.regionId);
-    if (!r.url) r.url = buildWplaceUrl(r._ll[0], r._ll[1]);
-  }
-  return rows;
+// Parses a snapshot CSV without blocking the main thread for one long
+// span. A plain Papa.parse(csvText) on the full ~262k-row file takes
+// 2+ seconds in one uninterrupted synchronous block — fine for the very
+// first load nobody can interact with yet, but background prefetch, the
+// Δ heatmap/Change-sort comparison fetch, and the trend panel's history
+// fetches all run *while* the user might be doing something else, and a
+// multi-second freeze at a random moment is exactly the kind of thing
+// that reads as "laggy". This uses PapaParse's own step()/pause()/
+// resume() to parse in ~3000-row chunks, yielding back to the browser
+// between each one (via setTimeout) so nothing blocks for more than the
+// time it takes to process one chunk.
+//
+// Deliberately uses header:false plus a name→index map built from the
+// actual first row, rather than PapaParse's own header:true handling —
+// combining header:true with step()+pause()/resume() triggers a real bug
+// in PapaParse (verified directly): it misdetects the header row as
+// duplicated on every resume and spams "Duplicate headers found and
+// renamed" to the console. Building the column map ourselves sidesteps
+// that entirely while staying just as robust to column order/presence
+// (e.g. the historical `url` column some older CSVs may still have).
+const CSV_PARSE_CHUNK_ROWS = 3000;
+
+function parseCSVAsync(csvText, onProgress, shouldAbort) {
+  return new Promise((resolve, reject) => {
+    const rows = [];
+    let headerMap = null;
+    let rowCount = 0;
+
+    Papa.parse(csvText, {
+      header: false,
+      skipEmptyLines: true,
+      step: (results, parser) => {
+        if (!headerMap) {
+          headerMap = {};
+          results.data.forEach((col, i) => { headerMap[col.trim()] = i; });
+          return;
+        }
+        const r = results.data;
+        const regionId = r[headerMap.regionId];
+        if (regionId) {
+          rows.push({
+            rank:      +r[headerMap.rank] || 0,
+            regionId:  +regionId,
+            name:      r[headerMap.name] || `Region #${regionId}`,
+            pixels:    +r[headerMap.pixels] || 0,
+            countryId: +r[headerMap.countryId] || 0,
+            url:       (headerMap.url != null ? r[headerMap.url] : '') || ''
+          });
+        }
+        rowCount++;
+        if (rowCount % CSV_PARSE_CHUNK_ROWS === 0) {
+          // A newer request (e.g. rapid date-slider clicks) can supersede
+          // this one mid-parse — abort rather than keep burning yielded
+          // time slices on a result the caller's about to discard anyway.
+          if (shouldAbort && shouldAbort()) { parser.abort(); return; }
+          parser.pause();
+          if (onProgress) onProgress(rowCount);
+          setTimeout(() => {
+            if (shouldAbort && shouldAbort()) { parser.abort(); return; }
+            parser.resume();
+          }, 0);
+        }
+      },
+      complete: (results) => {
+        if (results && results.meta && results.meta.aborted) {
+          reject(new Error('Parse aborted — superseded by a newer request'));
+          return;
+        }
+        for (const r of rows) {
+          r._ll = regionCoords(r.regionId);
+          if (!r.url) r.url = buildWplaceUrl(r._ll[0], r._ll[1]);
+        }
+        resolve(rows);
+      },
+      error: reject
+    });
+  });
 }
 
 // ── Streaming CSV download with progress ─────────────────────────────────────
 // PapaParse's worker:true + download:true cannot spawn a worker from a CDN
 // script URL when served over HTTPS (strict same-origin Web Worker rule).
 // We use the Fetch API instead — the download is fully async and non-blocking;
-// the ~0.5s main-thread parse that follows is covered by the "Parsing…" notice.
+// the main-thread parse that follows is handled by parseCSVAsync() above,
+// which chunks and yields instead of blocking in one multi-second span.
 async function fetchCSV(url, onProgress) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText || 'fetch failed'} (${url})`);
@@ -253,8 +315,7 @@ async function prefetchSnapshot(idx) {
   prefetchingDates.add(snap.date);
   try {
     const csvText = await fetchCSV(snap.url);
-    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-    const rows = parseCSVData(data);
+    const rows = await parseCSVAsync(csvText);
     if (rows.length) snapshotCache.set(snap.date, rows);
   } catch (err) {
     // Silent by design — see comment above.
@@ -268,12 +329,11 @@ function prefetchAdjacentSnapshots(idx) {
   // a user who's opted into reduced data usage shouldn't get uninvited
   // multi-megabyte downloads just for stepping near their current date.
   if (navigator.connection && navigator.connection.saveData) return;
-  // Deferred to an idle moment rather than fired immediately: the actual
-  // CSV parse (Papa.parse + parseCSVData) that follows the download is
-  // synchronous and blocks the main thread for a real, measurable span —
-  // fine when it's a foreground load the user is already waiting on, but
-  // this is a background optimization, so it shouldn't get a chance to
-  // stall an active scroll or interaction right after a snapshot loads.
+  // Deferred to an idle moment rather than fired immediately: even though
+  // parseCSVAsync() below yields between chunks instead of blocking in one
+  // long span, starting a multi-second background fetch+parse right after
+  // a snapshot renders is still nicer to defer to genuine idle time than
+  // to fire the instant something else might be happening.
   // requestIdleCallback isn't in Safari, hence the setTimeout fallback.
   const schedule = window.requestIdleCallback || (fn => setTimeout(fn, 300));
   schedule(() => {
@@ -315,13 +375,13 @@ async function loadSnapshot(idx) {
     if (loadingSnapshotIdx !== reqIdx) return; // a newer click overtook this one
 
     msgEl.textContent = `Parsing…`;
-    // yield one frame so the browser paints "Parsing…" before the sync parse
-    await new Promise(r => requestAnimationFrame(r));
-
-    const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    const rows = await parseCSVAsync(
+      csvText,
+      count => { if (loadingSnapshotIdx === reqIdx) msgEl.textContent = `Parsing… ${count.toLocaleString()} rows`; },
+      () => loadingSnapshotIdx !== reqIdx
+    );
     if (loadingSnapshotIdx !== reqIdx) return;
 
-    const rows = parseCSVData(data);
     if (!rows.length) throw new Error('CSV parsed but contained no valid rows');
 
     snapshotCache.set(snap.date, rows);
