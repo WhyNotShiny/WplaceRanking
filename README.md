@@ -1,7 +1,7 @@
 # Wplace Region Leaderboard
 
 An interactive map and leaderboard for [wplace.live](https://wplace.live), a collaborative
-pixel-art canvas covering the whole world. The globe is divided into a 512×512 grid of
+pixel-art canvas covering the whole world. The globe is divided into a 500×500 grid of
 regions; this project tracks how many pixels have been painted in each one, rolls that up
 to country level, and plots it all on a colour-coded map with historical snapshots you can
 step through over time.
