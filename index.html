@@ -354,6 +354,7 @@
     <span id="sidebar-reopen-label">Leaderboard</span>
   </button>
   <div id="map"></div>
+  <div id="heatmap-toggle-group">
   <button id="heatmap-toggle" onclick="toggleHeatmapOnly()" title="Show only the coloured region squares" aria-label="Show only the coloured region squares">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -365,6 +366,7 @@
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   </button>
+  </div>
   <div id="heatmap-mode-switch" role="group" aria-label="Heatmap mode">
     <button class="hms-opt on" data-mode="cumulative" onclick="setHeatmapMode('cumulative')" title="Colour the map by total pixels painted" aria-label="Show total pixels">Total</button>
     <button class="hms-opt" data-mode="change" onclick="setHeatmapMode('change')" title="Colour the map by change since the previous snapshot — also switches the sidebar lists to rank by Change" aria-label="Show change since previous snapshot">Change</button>

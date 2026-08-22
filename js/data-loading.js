@@ -156,12 +156,13 @@ let lastFailedAction = null; // 'discover' | { type: 'snapshot', idx }
 function setLoadError(msg) {
   document.getElementById('load-msg').textContent  = msg;
   document.getElementById('mload-msg').textContent = msg;
-  document.getElementById('load-bar').style.background = 'color-mix(in srgb, var(--red) 12%, var(--raised))';
+  const loadBar = document.getElementById('load-bar');
+  loadBar.style.background = 'color-mix(in srgb, var(--red) 12%, var(--raised))';
   document.getElementById('load-spin').style.display  = 'none';
   document.getElementById('mload-spin').style.display = 'none';
   document.getElementById('load-retry').style.display  = 'inline-block';
   document.getElementById('mload-retry').style.display = 'inline-block';
-  document.getElementById('load-bar').classList.remove('done');
+  loadBar.classList.remove('done');
   document.getElementById('mload').classList.remove('done');
 }
 
@@ -362,8 +363,9 @@ async function loadSnapshot(idx) {
     return;
   }
 
-  const msgEl  = document.getElementById('mload-msg');
-  document.getElementById('mload').classList.remove('done');
+  const msgEl   = document.getElementById('mload-msg');
+  const mloadEl = document.getElementById('mload');
+  mloadEl.classList.remove('done');
   msgEl.textContent = `Downloading ${fmtDate(snap.date)}… 0%`;
 
   try {
@@ -388,7 +390,7 @@ async function loadSnapshot(idx) {
     rowsData = rows;
     render(rows, snap);
     document.getElementById('load-bar').classList.add('done');
-    document.getElementById('mload').classList.add('done');
+    mloadEl.classList.add('done');
     updateUrlParams({ date: snap.date });
     applyPendingDeepLink();
     prefetchAdjacentSnapshots(idx);

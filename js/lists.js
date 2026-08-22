@@ -216,10 +216,10 @@ async function getCountryDeltaMap() {
 // the current date does).
 async function applyRegionSort(showLoadingUI) {
   const token = ++regionListToken;
+  const srEl = document.getElementById('srcount');
 
   if (sortKey === 'delta') {
     if (showLoadingUI) {
-      const srEl = document.getElementById('srcount');
       srEl.textContent = 'Loading comparison snapshot…';
       srEl.classList.remove('empty-hint');
     }
@@ -228,7 +228,6 @@ async function applyRegionSort(showLoadingUI) {
       info = await getRegionDeltaMap();
     } catch (err) {
       if (token !== regionListToken || sortKey !== 'delta') return;
-      const srEl = document.getElementById('srcount');
       srEl.textContent = "Couldn't load comparison snapshot.";
       srEl.classList.add('empty-hint');
       return;
@@ -246,7 +245,6 @@ async function applyRegionSort(showLoadingUI) {
 
   if (sortKey === 'delta' && !regionDeltaById) {
     getVlist().load([], 1);
-    const srEl = document.getElementById('srcount');
     srEl.textContent = 'No earlier snapshot to compare against.';
     srEl.classList.add('empty-hint');
     return;
@@ -267,10 +265,10 @@ async function applyRegionSort(showLoadingUI) {
 // Countries-list equivalent of applyRegionSort() above.
 async function applyCountrySort(showLoadingUI) {
   const token = ++countryListToken;
+  const srEl = document.getElementById('srcount'); // safe to cache: an element reference, unlike a live .value read, can't go stale
 
   if (ctySortKey === 'delta') {
     if (showLoadingUI) {
-      const srEl = document.getElementById('srcount');
       srEl.textContent = 'Loading comparison snapshot…';
       srEl.classList.remove('empty-hint');
     }
@@ -279,7 +277,6 @@ async function applyCountrySort(showLoadingUI) {
       info = await getCountryDeltaMap();
     } catch (err) {
       if (token !== countryListToken || ctySortKey !== 'delta') return;
-      const srEl = document.getElementById('srcount');
       srEl.textContent = "Couldn't load comparison snapshot.";
       srEl.classList.add('empty-hint');
       return;
@@ -296,15 +293,20 @@ async function applyCountrySort(showLoadingUI) {
   document.getElementById('cty-col-h-pixels').textContent =
     ctySortKey === 'delta' ? 'Change' : ctySortKey === 'avg' ? 'Avg/Region' : 'Pixels';
 
+  // Read .value fresh here, not cached upfront — getCountryDeltaMap() above
+  // can await a real network fetch, and caching a live input's value across
+  // that gap risks overwriting whatever the user typed in the meantime with
+  // a stale search term once this finally resolves.
+  const searchVal = document.getElementById('searchinput').value;
+
   if (ctySortKey === 'delta' && !countryDeltaById) {
-    filterCountriesView(document.getElementById('searchinput').value);
-    const srEl = document.getElementById('srcount');
+    filterCountriesView(searchVal);
     srEl.textContent = 'No earlier snapshot to compare against.';
     srEl.classList.add('empty-hint');
     return;
   }
 
-  filterCountriesView(document.getElementById('searchinput').value);
+  filterCountriesView(searchVal);
 }
 
 // ── Virtual list ──────────────────────────────────────────
