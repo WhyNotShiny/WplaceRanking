@@ -8,6 +8,89 @@ let selectedCountryId=null, selectionRect=null;
 let countryHighlightOverlay=null, countryHighlightBlobUrl=null;
 let heatmapOnly=false;
 
+// ── Persistent snapshot cache (IndexedDB) ────────────────────
+// snapshotCache (the in-memory Map declared in data.js) stays the single
+// source of truth *within* a session — every existing .has()/.get() call
+// site keeps working completely unchanged, synchronously. This layer's
+// only job is making sure whatever ends up in that Map also survives a
+// reload or a later visit, instead of every session starting from zero
+// regardless of how much history was already browsed before. IndexedDB
+// rather than localStorage: these are structured row arrays (up to 262k
+// objects each), not small strings, and localStorage's synchronous API
+// would block the main thread reading/writing anything this size.
+const IDB_NAME    = 'wplace-dashboard';
+const IDB_STORE   = 'snapshots';
+const IDB_VERSION = 1;
+// Most recent N cached dates get loaded into memory at startup; this
+// bounds startup time/memory even after years of weekly snapshots have
+// piled up in IndexedDB. Anything older simply isn't pre-loaded — it
+// behaves exactly like before this feature existed (fetched fresh from
+// network if actually visited), not lost or evicted from IndexedDB itself.
+const IDB_HYDRATE_LIMIT = 60;
+
+let idbPromise = null;
+function openIdb() {
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise(resolve => {
+    try {
+      if (!window.indexedDB) { resolve(null); return; } // e.g. some private-browsing modes — degrade to memory-only silently
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => resolve(null); // degrade to memory-only rather than throwing anywhere that awaits this
+    } catch (err) {
+      resolve(null); // indexedDB.open() can throw synchronously in some browsers/private-browsing modes — same graceful degradation
+    }
+  });
+  return idbPromise;
+}
+
+// Loads the most recent IDB_HYDRATE_LIMIT cached snapshots into the
+// in-memory snapshotCache. Called once at startup, awaited right before
+// the first loadSnapshot() — see discoverAndLoad() — so a returning
+// visitor's first (usually latest-date) load can actually hit the cache
+// instead of hydration finishing too late to matter.
+async function hydrateSnapshotCacheFromIdb() {
+  const db = await openIdb();
+  if (!db) return;
+  try {
+    await new Promise(resolve => {
+      const store = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE);
+      let count = 0;
+      const req = store.openCursor(null, 'prev'); // date strings sort chronologically — 'prev' walks newest-first
+      req.onsuccess = e => {
+        const cursor = e.target.result;
+        if (cursor && count < IDB_HYDRATE_LIMIT) {
+          if (!snapshotCache.has(cursor.key)) snapshotCache.set(cursor.key, cursor.value);
+          count++;
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+      req.onerror = () => resolve(); // partial/failed hydration is non-fatal — worst case this session just re-fetches from network per date, same as before
+    });
+  } catch (err) {
+    // Non-fatal for the same reason.
+  }
+}
+
+// Every existing snapshotCache.set(date, rows) call site is replaced with
+// this — writes to the in-memory cache immediately (synchronously usable
+// everywhere else, exactly as before), then persists to IndexedDB in the
+// background without making any caller wait on it.
+function cacheSnapshot(date, rows) {
+  snapshotCache.set(date, rows);
+  openIdb().then(db => {
+    if (!db) return;
+    try {
+      db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(rows, date);
+    } catch (err) {
+      // Non-fatal — this session still has it in memory regardless.
+    }
+  });
+}
+
 // ── Shareable deep links ────────────────────────────────────
 // Keeps ?region=/?country=/?date= in the URL in sync with the current
 // selection, so a link can be copied and shared to point straight at a
@@ -317,7 +400,7 @@ async function prefetchSnapshot(idx) {
   try {
     const csvText = await fetchCSV(snap.url);
     const rows = await parseCSVAsync(csvText);
-    if (rows.length) snapshotCache.set(snap.date, rows);
+    if (rows.length) cacheSnapshot(snap.date, rows);
   } catch (err) {
     // Silent by design — see comment above.
   } finally {
@@ -386,7 +469,7 @@ async function loadSnapshot(idx) {
 
     if (!rows.length) throw new Error('CSV parsed but contained no valid rows');
 
-    snapshotCache.set(snap.date, rows);
+    cacheSnapshot(snap.date, rows);
     rowsData = rows;
     render(rows, snap);
     document.getElementById('load-bar').classList.add('done');
@@ -418,7 +501,7 @@ async function fetchSnapshotListFromManifest() {
     .sort()
     .map(date => ({
       date,
-      url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
+      url: `${CSV_CDN_BASE}/${CSV_PREFIX}${date}.csv`
     }));
   if (!list.length) throw new Error('manifest.json contained no valid dates');
   return list;
@@ -446,7 +529,7 @@ async function fetchSnapshotList() {
     .filter(f => f.type === 'file' && f.name.startsWith(CSV_PREFIX) && f.name.endsWith('.csv'))
     .map(f => ({
       date: f.name.slice(CSV_PREFIX.length, -4), // strip prefix + .csv → YYYY-MM-DD
-      url:  `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${f.name}`
+      url:  `${CSV_CDN_BASE}/${f.name}`
     }))
     .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date)) // skip any oddly named files
     .sort((a, b) => a.date.localeCompare(b.date));     // oldest → newest
@@ -461,6 +544,13 @@ async function discoverAndLoad() {
   clearLoadError();
   document.getElementById('mload').classList.remove('done');
   document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
+
+  // Fired in parallel with snapshot discovery below, not awaited yet —
+  // reading from IndexedDB doesn't need to wait on (or block) finding out
+  // which dates exist. Only needs to finish before the first
+  // loadSnapshot() call at the bottom of this function actually checks
+  // snapshotCache, so a returning visitor's first load can hit the cache.
+  const hydratePromise = hydrateSnapshotCacheFromIdb();
 
   let usedFallback = false;
   try {
@@ -479,7 +569,7 @@ async function discoverAndLoad() {
       usedFallback = true;
       SNAPSHOTS = [...FALLBACK_DATES].sort().map(date => ({
         date,
-        url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/${CSV_PREFIX}${date}.csv`
+        url: `${CSV_CDN_BASE}/${CSV_PREFIX}${date}.csv`
       }));
     }
   }
@@ -497,5 +587,6 @@ async function discoverAndLoad() {
     ? `Using ${n} cached snapshot${n === 1 ? '' : 's'} (live list unavailable)…`
     : `Found ${n} snapshot${n === 1 ? '' : 's'} — loading latest…`;
   initSlider();
+  await hydratePromise;
   await loadSnapshot(currentSnapshotIdx);
 }

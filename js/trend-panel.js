@@ -21,8 +21,15 @@ let trendFetchToken  = 0;    // guards against overlapping fetches from rapid sw
 const TREND_MAX_SNAPSHOTS = 26;
 // Fetched with limited concurrency rather than one at a time, so opening
 // a trend panel takes roughly (window size ÷ concurrency) round-trips,
-// not (window size) of them.
-const TREND_FETCH_CONCURRENCY = 5;
+// not (window size) of them. Bumped from 5 to 8 as an experiment — both
+// jsDelivr and GitHub's raw-file serving use HTTP/2, which multiplexes
+// many requests over one connection rather than the old ~6-per-domain
+// HTTP/1.1 ceiling, so there's plausibly headroom above 5. Untested
+// against real network conditions though (nothing in this environment
+// can measure that) — worth watching the Network tab on a real trend
+// panel load and tuning down if requests start queuing or a slow/mobile
+// connection feels worse, not better.
+const TREND_FETCH_CONCURRENCY = 8;
 
 function isTrendPanelOpen() {
   return !document.getElementById('trend-panel').classList.contains('closed');
@@ -100,7 +107,7 @@ async function loadTrendSeries(extract, onDone) {
         const csvText = await fetchCSV(snap.url);
         if (token !== trendFetchToken) return; // superseded mid-download
         rows = await parseCSVAsync(csvText, null, () => token !== trendFetchToken);
-        snapshotCache.set(snap.date, rows);
+        cacheSnapshot(snap.date, rows);
       } catch (err) {
         if (token !== trendFetchToken) return;
         points[i] = { date: snap.date, pixels: null }; // gap in the line, not a hard failure

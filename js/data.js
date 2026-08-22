@@ -47,6 +47,16 @@ const CSV_PREFIX  = 'region_leaderboard_';
 // script generates the CSVs should also write/update this file.
 const MANIFEST_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/${REPO_DIR}/manifest.json`;
 
+// Individual dated CSVs (region_leaderboard_YYYY-MM-DD.csv) are immutable
+// once published — a given date's file never changes again — so they're
+// safe to serve through jsDelivr's real CDN (Cloudflare + Fastly edge
+// network) instead of GitHub's own raw-file serving. manifest.json stays
+// on raw.githubusercontent.com above deliberately: it's rewritten in
+// place every week, and jsDelivr caches branch-tracked files for up to
+// 12 hours, which would delay new-snapshot discovery for the one file
+// where that actually matters.
+const CSV_CDN_BASE = `https://cdn.jsdelivr.net/gh/${REPO_OWNER}/${REPO_NAME}@${REPO_BRANCH}/${REPO_DIR}`;
+
 // Last-resort fallback — used only if BOTH the manifest above and the
 // GitHub API discovery call fail (e.g. manifest not created yet, or a
 // rate limit hit before it exists), so the app doesn't get stuck on

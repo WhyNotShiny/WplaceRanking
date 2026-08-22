@@ -140,7 +140,7 @@ async function getRegionDeltaMap() {
     if (!prevRows) {
       const csvText = await fetchCSV(prevSnap.url);
       prevRows = await parseCSVAsync(csvText);
-      snapshotCache.set(prevSnap.date, prevRows);
+      cacheSnapshot(prevSnap.date, prevRows);
     }
     const prevById = new Map(prevRows.map(r => [r.regionId, r.pixels]));
     // Clamped to 0: a negative delta can only come from the top-50-per-region
