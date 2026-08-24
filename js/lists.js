@@ -136,8 +136,10 @@ async function getRegionDeltaMap() {
   const forSnapshotIdx = currentSnapshotIdx;
   const promise = (async () => {
     const prevSnap = SNAPSHOTS[forSnapshotIdx - 1];
-    let prevRows = snapshotCache.get(prevSnap.date);
-    if (!prevRows) {
+    let prevRows = snapshotCache.get(prevSnap.date) || await readSnapshotFromIdb(prevSnap.date);
+    if (prevRows) {
+      snapshotCache.set(prevSnap.date, prevRows);
+    } else {
       const csvText = await fetchCSV(prevSnap.url);
       prevRows = await parseCSVAsync(csvText);
       cacheSnapshot(prevSnap.date, prevRows);

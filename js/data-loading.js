@@ -10,23 +10,26 @@ let heatmapOnly=false;
 
 // ── Persistent snapshot cache (IndexedDB) ────────────────────
 // snapshotCache (the in-memory Map declared in data.js) stays the single
-// source of truth *within* a session — every existing .has()/.get() call
-// site keeps working completely unchanged, synchronously. This layer's
-// only job is making sure whatever ends up in that Map also survives a
-// reload or a later visit, instead of every session starting from zero
-// regardless of how much history was already browsed before. IndexedDB
-// rather than localStorage: these are structured row arrays (up to 262k
-// objects each), not small strings, and localStorage's synchronous API
-// would block the main thread reading/writing anything this size.
+// source of truth *within* a session. This layer's job is making sure a
+// snapshot already downloaded+parsed in an earlier session doesn't need
+// to be fetched and parsed again — IndexedDB rather than localStorage
+// since these are structured row arrays (up to 262k objects each), not
+// small strings.
+//
+// This used to eagerly bulk-load up to 60 cached dates into memory at
+// startup — that was wrong, and caused a real bug: deserializing even
+// one full 262k-row snapshot back out of IndexedDB takes over a second
+// (structured-clone on that many objects isn't free), so loading up to
+// 60 of them upfront could leave the app looking hung for a long stretch
+// on any visit where a lot of history had already piled up — worse the
+// *more* had already been cached, which is exactly what got reported.
+// Fixed by switching to on-demand single-key lookups below: at most one
+// date's worth of IndexedDB deserialization cost is ever paid, for
+// whichever specific date is actually being requested, never a bulk
+// upfront cost proportional to everything ever cached.
 const IDB_NAME    = 'wplace-dashboard';
 const IDB_STORE   = 'snapshots';
 const IDB_VERSION = 1;
-// Most recent N cached dates get loaded into memory at startup; this
-// bounds startup time/memory even after years of weekly snapshots have
-// piled up in IndexedDB. Anything older simply isn't pre-loaded — it
-// behaves exactly like before this feature existed (fetched fresh from
-// network if actually visited), not lost or evicted from IndexedDB itself.
-const IDB_HYDRATE_LIMIT = 60;
 
 let idbPromise = null;
 function openIdb() {
@@ -45,33 +48,24 @@ function openIdb() {
   return idbPromise;
 }
 
-// Loads the most recent IDB_HYDRATE_LIMIT cached snapshots into the
-// in-memory snapshotCache. Called once at startup, awaited right before
-// the first loadSnapshot() — see discoverAndLoad() — so a returning
-// visitor's first (usually latest-date) load can actually hit the cache
-// instead of hydration finishing too late to matter.
-async function hydrateSnapshotCacheFromIdb() {
+// Looks up exactly one date, returning its rows or null — never touches
+// any other entry. Callers check the in-memory snapshotCache first
+// (each call site does this inline, since what happens around a memory
+// hit vs an IndexedDB hit vs a full miss differs per caller — e.g.
+// loadSnapshot() shows a "Checking local cache…" message only when the
+// memory check misses); this is the fallback for when that misses but a
+// previous session may have already cached this date.
+async function readSnapshotFromIdb(date) {
   const db = await openIdb();
-  if (!db) return;
+  if (!db) return null;
   try {
-    await new Promise(resolve => {
-      const store = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE);
-      let count = 0;
-      const req = store.openCursor(null, 'prev'); // date strings sort chronologically — 'prev' walks newest-first
-      req.onsuccess = e => {
-        const cursor = e.target.result;
-        if (cursor && count < IDB_HYDRATE_LIMIT) {
-          if (!snapshotCache.has(cursor.key)) snapshotCache.set(cursor.key, cursor.value);
-          count++;
-          cursor.continue();
-        } else {
-          resolve();
-        }
-      };
-      req.onerror = () => resolve(); // partial/failed hydration is non-fatal — worst case this session just re-fetches from network per date, same as before
+    return await new Promise(resolve => {
+      const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(date);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => resolve(null);
     });
   } catch (err) {
-    // Non-fatal for the same reason.
+    return null;
   }
 }
 
@@ -398,6 +392,8 @@ async function prefetchSnapshot(idx) {
   if (snapshotCache.has(snap.date) || prefetchingDates.has(snap.date)) return;
   prefetchingDates.add(snap.date);
   try {
+    const idbRows = await readSnapshotFromIdb(snap.date);
+    if (idbRows && idbRows.length) { snapshotCache.set(snap.date, idbRows); return; }
     const csvText = await fetchCSV(snap.url);
     const rows = await parseCSVAsync(csvText);
     if (rows.length) cacheSnapshot(snap.date, rows);
@@ -436,7 +432,7 @@ async function loadSnapshot(idx) {
   loadingSnapshotIdx = reqIdx;
   clearLoadError(); // clears any red/error state left over from a previous failed attempt
 
-  // Serve from cache — no re-download needed
+  // Fast path: already in memory this session — instant, no async gap.
   if (snapshotCache.has(snap.date)) {
     rowsData = snapshotCache.get(snap.date);
     render(rowsData, snap);
@@ -449,6 +445,27 @@ async function loadSnapshot(idx) {
   const msgEl   = document.getElementById('mload-msg');
   const mloadEl = document.getElementById('mload');
   mloadEl.classList.remove('done');
+
+  // Check IndexedDB next — a previous session may have already cached
+  // this exact date. Slower than the in-memory fast path above (reading
+  // a full snapshot back out takes real time — deserializing ~262k
+  // objects isn't free), so this gets its own status message rather than
+  // blocking silently, but it's still meaningfully faster than a full
+  // network fetch + parse for the common case of revisiting a recent date.
+  msgEl.textContent = 'Checking local cache…';
+  const idbRows = await readSnapshotFromIdb(snap.date);
+  if (loadingSnapshotIdx !== reqIdx) return; // a newer click overtook this one
+  if (idbRows && idbRows.length) {
+    snapshotCache.set(snap.date, idbRows);
+    rowsData = idbRows;
+    render(rowsData, snap);
+    document.getElementById('load-bar').classList.add('done');
+    mloadEl.classList.add('done');
+    updateUrlParams({ date: snap.date });
+    applyPendingDeepLink();
+    prefetchAdjacentSnapshots(idx);
+    return;
+  }
   msgEl.textContent = `Downloading ${fmtDate(snap.date)}… 0%`;
 
   try {
@@ -545,13 +562,6 @@ async function discoverAndLoad() {
   document.getElementById('mload').classList.remove('done');
   document.getElementById('mload-msg').textContent = 'Discovering snapshots…';
 
-  // Fired in parallel with snapshot discovery below, not awaited yet —
-  // reading from IndexedDB doesn't need to wait on (or block) finding out
-  // which dates exist. Only needs to finish before the first
-  // loadSnapshot() call at the bottom of this function actually checks
-  // snapshotCache, so a returning visitor's first load can hit the cache.
-  const hydratePromise = hydrateSnapshotCacheFromIdb();
-
   let usedFallback = false;
   try {
     SNAPSHOTS = await fetchSnapshotListFromManifest();
@@ -587,6 +597,5 @@ async function discoverAndLoad() {
     ? `Using ${n} cached snapshot${n === 1 ? '' : 's'} (live list unavailable)…`
     : `Found ${n} snapshot${n === 1 ? '' : 's'} — loading latest…`;
   initSlider();
-  await hydratePromise;
   await loadSnapshot(currentSnapshotIdx);
 }

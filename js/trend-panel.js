@@ -100,9 +100,12 @@ async function loadTrendSeries(extract, onDone) {
 
   async function fetchOne(i) {
     const snap = snaps[i];
-    let rows = snapshotCache.get(snap.date);
+    let rows = snapshotCache.get(snap.date) || await readSnapshotFromIdb(snap.date);
+    if (token !== trendFetchToken) return; // superseded while the IndexedDB read was in flight
 
-    if (!rows) {
+    if (rows) {
+      snapshotCache.set(snap.date, rows);
+    } else {
       try {
         const csvText = await fetchCSV(snap.url);
         if (token !== trendFetchToken) return; // superseded mid-download
