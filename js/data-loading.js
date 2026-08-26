@@ -78,9 +78,10 @@ function cacheSnapshot(date, rows) {
   openIdb().then(db => {
     if (!db) return;
     try {
-      db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(rows, date);
+      const req = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(rows, date);
+      req.onerror = () => {}; // e.g. storage quota exceeded — non-fatal, this session still has it in memory regardless; suppressing prevents this bubbling up as an uncaught error event
     } catch (err) {
-      // Non-fatal — this session still has it in memory regardless.
+      // Non-fatal for the same reason — covers a synchronous throw instead.
     }
   });
 }
@@ -518,7 +519,7 @@ async function fetchSnapshotListFromManifest() {
     .sort()
     .map(date => ({
       date,
-      url: `${CSV_CDN_BASE}/${CSV_PREFIX}${date}.csv`
+      url: `${CSV_BASE_URL}/${CSV_PREFIX}${date}.csv`
     }));
   if (!list.length) throw new Error('manifest.json contained no valid dates');
   return list;
@@ -546,7 +547,7 @@ async function fetchSnapshotList() {
     .filter(f => f.type === 'file' && f.name.startsWith(CSV_PREFIX) && f.name.endsWith('.csv'))
     .map(f => ({
       date: f.name.slice(CSV_PREFIX.length, -4), // strip prefix + .csv → YYYY-MM-DD
-      url:  `${CSV_CDN_BASE}/${f.name}`
+      url:  `${CSV_BASE_URL}/${f.name}`
     }))
     .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date)) // skip any oddly named files
     .sort((a, b) => a.date.localeCompare(b.date));     // oldest → newest
@@ -579,7 +580,7 @@ async function discoverAndLoad() {
       usedFallback = true;
       SNAPSHOTS = [...FALLBACK_DATES].sort().map(date => ({
         date,
-        url: `${CSV_CDN_BASE}/${CSV_PREFIX}${date}.csv`
+        url: `${CSV_BASE_URL}/${CSV_PREFIX}${date}.csv`
       }));
     }
   }
