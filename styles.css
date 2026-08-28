@@ -469,9 +469,13 @@ kbd {
    and re-tunes the same tiles with a CSS filter instead. Verified against
    a synthetic tile sample before shipping: backgrounds go near-black,
    water/greenery keep plausible natural-looking hues instead of turning
-   into inversion artifacts, and light text/labels stay legible. */
+   into inversion artifacts, and light text/labels stay legible.
+   !important because Leaflet's own stylesheet sets .leaflet-tile
+   { filter: inherit } — this must win over that outright, not just by
+   specificity, since inherit would otherwise pull nothing from an
+   unfiltered ancestor and silently no-op the whole effect. */
 [data-theme="dark"] .osm-base-tiles {
-  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
 }
 
 /* Heatmap-mode switch — a real two-option segmented control (matching the
