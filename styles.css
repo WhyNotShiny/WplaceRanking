@@ -459,8 +459,11 @@ kbd {
 #heatmap-toggle.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 #heatmap-vis-toggle.off { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 
-/* Hides the base map tiles, leaving just the coloured region overlay */
-#map.heatmap-only .leaflet-tile-pane {
+/* Hides just the base map tile images, leaving the coloured region
+   overlay visible — targets .osm-base-tiles specifically (not the whole
+   pane) since the heatmap overlay now shares the same pane with the base
+   tiles (see mapContentPane in map-core.js) and must stay visible here. */
+#map.heatmap-only .osm-base-tiles {
   display: none;
 }
 
@@ -567,6 +570,50 @@ kbd {
 .leaflet-control-zoom a:hover { background: var(--raised) !important; color: var(--text) !important; }
 
 .filled-overlay { image-rendering: pixelated; }
+
+/* Standard OSM tiles bake place labels into the same image as the base
+   map — there's no separate labels layer to keep above the heatmap like
+   CARTO's setup had. A blend mode lets label text stay visible on top of
+   the heatmap colour instead of being fully hidden underneath it, while
+   leaving the (much larger) non-text background at essentially
+   full-strength heatmap colour.
+
+   Scoped to .map-content-pane specifically — the custom pane baseTileLayer
+   and this overlay now deliberately share (see map-core.js) — rather
+   than .filled-overlay generally, since the country-highlight wash also
+   uses that class but lives in its own separate pane. This scoping
+   isn't just about excluding the country highlight: mix-blend-mode only
+   blends with content in the *same* stacking context, and Leaflet panes
+   (position:absolute + explicit z-index) each create their own. An
+   earlier version of this fix put the heatmap in Leaflet's separate
+   default overlay pane, a sibling stacking context to the tile pane —
+   the blend mode had nothing valid to blend with there and silently did
+   nothing, which is why labels were still fully invisible after that
+   fix shipped. Putting both layers in one shared pane was the actual fix.
+
+   The blend mode itself has to flip with theme: dark theme's own filter
+   (see .osm-base-tiles) inverts the tile, swapping which parts are light
+   vs dark — text goes from dark-on-light to light-on-dark. Verified both
+   directions against synthetic label text across the full heatmap
+   gradient before shipping this: multiply preserves vivid colour and
+   good text contrast for light theme, but on dark theme's inverted tile
+   it drags the whole background toward near-black instead, nearly
+   erasing the heatmap; screen is the correct counterpart there, since a
+   light (post-invert) text value can't be dragged down by screen's
+   lighten-only math even at the darkest end of the gradient. Default
+   (screen) covers dark theme, since dark never sets an explicit
+   data-theme attribute — only light does.
+   Known remaining limit either way: at the very darkest end of the
+   heatmap gradient (lowest-density regions) contrast is weaker than at
+   the vivid end — inherent to blending two colours that are both close
+   to black/white respectively. The heatmap visibility toggle (eye icon)
+   remains the reliable way to read labels in that specific case. */
+.map-content-pane .filled-overlay {
+  mix-blend-mode: screen !important;
+}
+[data-theme="light"] .map-content-pane .filled-overlay {
+  mix-blend-mode: multiply !important;
+}
 
 /* ── Date timeline slider ──────────────────────────────── */
 #date-slider-bar {

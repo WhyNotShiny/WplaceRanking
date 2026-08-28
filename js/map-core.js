@@ -20,12 +20,22 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 // nolabels/only_labels variants like CARTO offered), so dark mode is done
 // with a CSS filter on this same layer instead of swapping to a second
 // tile source — see [data-theme="dark"] .osm-base-tiles in styles.css.
+// Base tiles and the heatmap overlay share one pane deliberately (see
+// below) — mix-blend-mode only blends with content in the *same*
+// stacking context, and Leaflet's panes (position:absolute + explicit
+// z-index) each create their own separate one. Putting the heatmap in
+// its usual default overlay pane, a sibling of the tile pane, meant its
+// blend mode had nothing valid to blend with and silently did nothing.
+map.createPane('mapContentPane');
+map.getPane('mapContentPane').style.zIndex = '200';
+map.getPane('mapContentPane').classList.add('map-content-pane'); // explicit class for CSS to target — not relying on Leaflet's own internal pane class-naming convention
+
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 const baseTileLayer = L.tileLayer(TILE_URL, {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   subdomains: 'abc', maxZoom: 13, noWrap: true,
-  className: 'osm-base-tiles'
+  className: 'osm-base-tiles', pane: 'mapContentPane'
 }).addTo(map);
 
 // Sit above labels so highlight/selection indicators stay visible even
@@ -143,7 +153,12 @@ const ICON_LINK    = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none
 const ICON_CHECK   = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
 // ── Image overlay ─────────────────────────────────────────
-const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay' };
+// pane: 'mapContentPane' — same pane as baseTileLayer above, deliberately,
+// so the blend-mode CSS (see styles.css) can actually see the tiles as
+// its backdrop. DOM append order (tiles added first at load, this
+// overlay added/replaced later per snapshot) keeps it painting on top
+// within that shared stacking context.
+const OVERLAY_OPTS = { opacity: 1, interactive: false, className: 'filled-overlay', pane: 'mapContentPane' };
 let filledOverlays = [];
 let lastOverlayBlobUrl = null;
 let heatmapVisible = true; // toggled via toggleHeatmapVisibility(); persists across snapshot switches
