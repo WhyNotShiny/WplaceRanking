@@ -1,17 +1,18 @@
-// theme.js — light/dark theme toggle; swaps CSS variables and the map's
-// tile layer URLs. Requires map-core.js (tile layer references).
+// theme.js — light/dark theme toggle; swaps CSS variables. The map's
+// dark-mode look is a CSS filter on the tile layer (see styles.css),
+// applied automatically via the data-theme attribute set here — no
+// direct tile-layer reference needed in this file anymore.
 
 // ── Theme (light/dark) ────────────────────────────────────
 // The inline script in <head> already applied a saved/system-preferred
 // theme to <html> before first paint (avoids a flash of the wrong theme);
-// this just keeps everything else — button icon, map tiles — in sync with
-// whatever attribute ended up set, and handles switching afterward.
+// this just keeps everything else — button icon, CSS-driven map filter —
+// in sync with whatever attribute ended up set, and handles switching
+// afterward.
 const THEME_KEY = 'wplace-theme';
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
-  baseTileLayer.setUrl(TILE_URLS[theme].base);
-  labelsTileLayer.setUrl(TILE_URLS[theme].labels);
   const btn = document.getElementById('theme-toggle');
   btn.innerHTML = theme === 'light' ? ICON_SUN : ICON_MOON;
   const label = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';

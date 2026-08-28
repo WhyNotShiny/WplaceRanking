@@ -459,10 +459,19 @@ kbd {
 #heatmap-toggle.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 #heatmap-vis-toggle.off { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 
-/* Hides the base map tiles + place labels, leaving just the coloured region overlay */
-#map.heatmap-only .leaflet-tile-pane,
-#map.heatmap-only .leaflet-labels-pane {
+/* Hides the base map tiles, leaving just the coloured region overlay */
+#map.heatmap-only .leaflet-tile-pane {
   display: none;
+}
+
+/* Standard OpenStreetMap tiles only come in one (light) style — no
+   separate dark variant like CARTO used to offer — so dark mode inverts
+   and re-tunes the same tiles with a CSS filter instead. Verified against
+   a synthetic tile sample before shipping: backgrounds go near-black,
+   water/greenery keep plausible natural-looking hues instead of turning
+   into inversion artifacts, and light text/labels stay legible. */
+[data-theme="dark"] .osm-base-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
 
 /* Heatmap-mode switch — a real two-option segmented control (matching the

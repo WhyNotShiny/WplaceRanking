@@ -14,21 +14,18 @@ const map = L.map('map', {
 });
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-const TILE_URLS = {
-  dark:  { base: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',  labels: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png' },
-  light: { base: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', labels: 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png' }
-};
+// Standard OpenStreetMap tiles — no API key, genuinely free for reasonable
+// use (unlike CARTO's raster basemaps, which started requiring a key).
+// Only one style exists (labels baked into the tile, no separate
+// nolabels/only_labels variants like CARTO offered), so dark mode is done
+// with a CSS filter on this same layer instead of swapping to a second
+// tile source — see [data-theme="dark"] .osm-base-tiles in styles.css.
+const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-const baseTileLayer = L.tileLayer(TILE_URLS.dark.base, {
-  attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
-  subdomains: 'abcd', maxZoom: 13, noWrap: true
-}).addTo(map);
-
-map.createPane('labelsPane');
-map.getPane('labelsPane').style.zIndex = '450';
-map.getPane('labelsPane').style.pointerEvents = 'none';
-const labelsTileLayer = L.tileLayer(TILE_URLS.dark.labels, {
-  subdomains: 'abcd', maxZoom: 13, pane: 'labelsPane', noWrap: true
+const baseTileLayer = L.tileLayer(TILE_URL, {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  subdomains: 'abc', maxZoom: 13, noWrap: true,
+  className: 'osm-base-tiles'
 }).addTo(map);
 
 // Sit above labels so highlight/selection indicators stay visible even
