@@ -13,9 +13,7 @@ function render(rows, snap) {
   maxPxGlobal = maxPx;
   rowById = new Map(rows.map(r => [r.regionId, r])); // O(1) lookup for map clicks
 
-  const numEl = document.getElementById('big-num');
-  numEl.classList.remove('idle');
-  animCount(numEl, totalPx);
+  refreshBigNumber();
 
   // ── Date & Info panel ──────────────────────────────────
   if (snap) {
@@ -38,6 +36,65 @@ function render(rows, snap) {
   buildCountryData(rows);
   applyRegionSort(false);
   if (currentView === 'countries') applyCountrySort(false);
+}
+
+// Toggles the big sidebar-header number between "total pixels painted"
+// (cumulative mode) and "total change since the previous snapshot"
+// (change mode) — mirrors whatever the Total/Change switch is currently
+// set to. Reuses the same shared delta computation the Δ heatmap and
+// "Change" sort already use (see getRegionDeltaMap()), so switching
+// modes doesn't re-fetch anything already cached. Called from render()
+// on every snapshot load, and from setHeatmapMode() so toggling modes
+// updates this immediately without needing a new snapshot to load first.
+let bigNumberToken = 0;
+
+async function refreshBigNumber() {
+  const token = ++bigNumberToken;
+  const numEl   = document.getElementById('big-num');
+  const labelEl = document.getElementById('big-label');
+  if (!rowsData.length) return;
+
+  if (heatmapMode !== 'change') {
+    const totalPx = rowsData.reduce((s, r) => s + r.pixels, 0);
+    numEl.classList.remove('idle');
+    animCount(numEl, totalPx);
+    labelEl.textContent = 'total pixels painted';
+    return;
+  }
+
+  if (currentSnapshotIdx <= 0) {
+    numEl.classList.remove('idle');
+    numEl.textContent = '—';
+    labelEl.textContent = 'no earlier snapshot to compare';
+    return;
+  }
+
+  numEl.classList.remove('idle');
+  numEl.textContent = '…';
+  labelEl.textContent = 'loading comparison…';
+
+  let info;
+  try {
+    info = await getRegionDeltaMap();
+  } catch (err) {
+    if (token !== bigNumberToken) return;
+    numEl.textContent = '—';
+    labelEl.textContent = 'comparison failed to load';
+    return;
+  }
+  if (token !== bigNumberToken) return;
+
+  if (!info) {
+    numEl.textContent = '—';
+    labelEl.textContent = 'no earlier snapshot to compare';
+    return;
+  }
+
+  let totalChange = 0;
+  for (const v of info.map.values()) totalChange += v;
+
+  animCount(numEl, totalChange, '+');
+  labelEl.textContent = `change since ${fmtDate(info.prevDate)}`;
 }
 
 // ── Stats tab ─────────────────────────────────────────────

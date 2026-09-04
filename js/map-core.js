@@ -131,11 +131,11 @@ function regionCellBounds(rid) {
 // ── Format ────────────────────────────────────────────────
 const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));
 
-function animCount(el, to) {
+function animCount(el, to, prefix = '') {
   const s = Date.now(), d = 800;
   const tick = () => {
     const p = Math.min((Date.now()-s)/d,1), e = 1-Math.pow(1-p,3);
-    el.textContent = fmt(Math.round(to*e));
+    el.textContent = prefix + fmt(Math.round(to*e));
     if (p<1) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
