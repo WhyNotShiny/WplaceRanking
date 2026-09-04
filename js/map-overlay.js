@@ -113,7 +113,14 @@ function setHeatmapMode(mode) {
   const changed = mode !== heatmapMode;
   heatmapMode = mode;
   document.querySelectorAll('.hms-opt').forEach(btn => btn.classList.toggle('on', btn.dataset.mode === mode));
-  if (changed) refreshHeatmapOverlay();
+  if (changed) {
+    refreshHeatmapOverlay();
+    refreshBigNumber().catch(err => {
+      console.error('refreshBigNumber failed:', err);
+      const labelEl = document.getElementById('big-label');
+      if (labelEl) labelEl.textContent = 'error: ' + err.message;
+    });
+  }
 
   // Keep the sidebar in sync — switching the map to Change also ranks
   // both leaderboards by Change, and switching back to Total restores
