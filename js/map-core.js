@@ -131,9 +131,18 @@ function regionCellBounds(rid) {
 // ── Format ────────────────────────────────────────────────
 const fmt = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));
 
+// Cancellable via a shared token: animCount is only ever used for
+// #big-num, so a new call always means "whatever's currently animating
+// there is now stale" — without this, switching heatmap mode (or
+// loading a new snapshot) while a previous animCount is still ticking
+// left its requestAnimationFrame loop free to keep overwriting the
+// display with the old value for up to 800ms after the new one was set.
+let animCountToken = 0;
 function animCount(el, to, prefix = '') {
+  const token = ++animCountToken;
   const s = Date.now(), d = 800;
   const tick = () => {
+    if (token !== animCountToken) return; // superseded by a newer animCount call
     const p = Math.min((Date.now()-s)/d,1), e = 1-Math.pow(1-p,3);
     el.textContent = prefix + fmt(Math.round(to*e));
     if (p<1) requestAnimationFrame(tick);

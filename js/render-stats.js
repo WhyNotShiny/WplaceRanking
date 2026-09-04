@@ -63,12 +63,14 @@ async function refreshBigNumber() {
   }
 
   if (currentSnapshotIdx <= 0) {
+    animCountToken++; // cancel any still-running animation — a direct assignment below wouldn't otherwise be safe from it
     numEl.classList.remove('idle');
     numEl.textContent = '—';
     labelEl.textContent = 'no earlier snapshot to compare';
     return;
   }
 
+  animCountToken++;
   numEl.classList.remove('idle');
   numEl.textContent = '…';
   labelEl.textContent = 'loading comparison…';
@@ -78,6 +80,7 @@ async function refreshBigNumber() {
     info = await getRegionDeltaMap();
   } catch (err) {
     if (token !== bigNumberToken) return;
+    animCountToken++;
     numEl.textContent = '—';
     labelEl.textContent = 'comparison failed to load';
     return;
@@ -85,6 +88,7 @@ async function refreshBigNumber() {
   if (token !== bigNumberToken) return;
 
   if (!info) {
+    animCountToken++;
     numEl.textContent = '—';
     labelEl.textContent = 'no earlier snapshot to compare';
     return;
